@@ -36,16 +36,26 @@ def train(learning_rate, lr_adaptive, max_steps, result_file, last_file=None, re
 
 
 def read_features_from_files(height, width, folder='Training'):
-    pos_dir = os.path.join(PROJECT_ROOT, 'Data', 'Step1', folder, 'positive')
-    neg_dir = os.path.join(PROJECT_ROOT, 'Data', 'Step1', folder, 'negative')
-
     img_reader = ImgReader(height, width)
+
+    pos_dir = os.path.join(PROJECT_ROOT, 'Data', 'Step1', folder, 'positive')
     pos_feats = np.asarray(
         img_reader.get_features_all_images(pos_dir, skip=[0, 0, 0, 0], stride=1, data_augm=False),
         dtype=np.float32)
-    neg_feats = np.asarray(
-        img_reader.get_features_all_images(neg_dir, skip=[0, 0, 0, 0], stride=5, padding=False),
-        dtype=np.float32)
+
+    if folder=='Training':
+        neg1_dir = os.path.join(PROJECT_ROOT, 'Data', 'Step1', folder, 'negative1')
+        neg5_dir = os.path.join(PROJECT_ROOT, 'Data', 'Step1', folder, 'negative5')
+        neg1_feats = img_reader.get_features_all_images(neg1_dir, skip=[0, 0, 0, 0], stride=1,
+                                                        padding=False)
+        neg5_feats = img_reader.get_features_all_images(neg5_dir, skip=[0, 0, 0, 0], stride=5,
+                                                        padding=False)
+        neg_feats = np.asarray(np.append(neg1_feats, neg5_feats, axis=0), dtype=np.float32)
+    else:
+        neg_dir = os.path.join(PROJECT_ROOT, 'Data', 'Step1', folder, 'negative')
+        neg_feats = np.asarray(
+            img_reader.get_features_all_images(neg_dir, skip=[0, 0, 0, 0], stride=5, padding=False),
+            dtype=np.float32)
 
     return pos_feats, neg_feats
 
@@ -53,12 +63,12 @@ def read_features_from_files(height, width, folder='Training'):
 if __name__ == "__main__":
     from time import time
     import tensorflow as tf
-    from misc.cnnpredictor import CnnPredictor
+    from misc.cnnpredictor import *
 
     training = False
     if training:
         t0 = time()
-        train(learning_rate=1e-4, lr_adaptive=True, max_steps=270000, result_file='step1_stcnn1')
+        train(learning_rate=1e-4, lr_adaptive=True, max_steps=330000, result_file='step1_dcnn')
         t1 = time()
         print("Training time: {:6.2f} seconds".format(t1 - t0))
     else:
@@ -69,27 +79,32 @@ if __name__ == "__main__":
         neg_cnt = neg_feats.shape[0]
 
         res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
+        model_list = get_all_models(res_dir, "step1_")
+
         with tf.Session() as sess:
-            cnn_pred = CnnPredictor(sess, res_dir, 'step1_dcnn')
-            _, pos_arr = cnn_pred.predict(pos_feats)
-            _, neg_arr = cnn_pred.predict(neg_feats)
+            for model in model_list:
+                cnn_pred = CnnPredictor(sess, res_dir, model)
+                _, pos_arr = cnn_pred.predict(pos_feats)
+                _, neg_arr = cnn_pred.predict(neg_feats)
 
-        pos_err = 0
-        for i in range(pos_cnt):
-            if pos_arr[i][0] == 0:
-                pos_err += 1
+                pos_err = 0
+                for i in range(pos_cnt):
+                    if pos_arr[i][0] == 0:
+                        pos_err += 1
 
-        neg_err = 0
-        for i in range(neg_cnt):
-            if neg_arr[i][0] == 1:
-                neg_err += 1
+                neg_err = 0
+                for i in range(neg_cnt):
+                    if neg_arr[i][0] == 1:
+                        neg_err += 1
 
-        all_err = pos_err + neg_err
-        all_cnt = pos_cnt + neg_cnt
+                all_err = pos_err + neg_err
+                all_cnt = pos_cnt + neg_cnt
 
-        print("Errors made on positive samples: {} out of {}, accuracy = {:5.2f}%"
-              .format(pos_err, pos_cnt, ((pos_cnt-pos_err)/pos_cnt)*100))
-        print("Errors made on negative samples: {} out of {}, accuracy = {:5.2f}%"
-              .format(neg_err, neg_cnt, ((neg_cnt-neg_err)/neg_cnt)*100))
-        print("Errors made on all samples: {} out of {}, overall accuracy = {:5.2f}%"
-              .format(all_err, all_cnt, ((all_cnt-all_err)/all_cnt)*100))
+                print("Result of model: {}".format(model))
+                print("Errors made on positive samples: {} out of {}, accuracy = {:5.2f}%"
+                      .format(pos_err, pos_cnt, ((pos_cnt-pos_err)/pos_cnt)*100))
+                print("Errors made on negative samples: {} out of {}, accuracy = {:5.2f}%"
+                      .format(neg_err, neg_cnt, ((neg_cnt-neg_err)/neg_cnt)*100))
+                print("Errors made on all samples: {} out of {}, overall accuracy = {:5.2f}%"
+                      .format(all_err, all_cnt, ((all_cnt-all_err)/all_cnt)*100))
+                print()

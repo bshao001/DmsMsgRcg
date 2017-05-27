@@ -73,3 +73,21 @@ class CnnPredictor(object):
             assert values.shape[0] == feat_cnt and indices.shape[0] == feat_cnt
 
             return values, indices
+
+def get_all_models(model_dir, prefix):
+    """
+    Args:
+        model_dir: The name of the full path folder in which the model training results 
+            were saved.
+        prefix: The prefix of the file name in lower case, such as step1_.
+    Returns: A python list containing the file names (excluding the path name, and the 
+        suffix) of all trained models.
+    """
+    model_list = []
+    for model_file in os.listdir(model_dir):
+        full_path_name = os.path.join(model_dir, model_file)
+        if os.path.isfile(full_path_name) and model_file.lower().startswith(prefix) \
+                and model_file.lower().endswith('.meta'):
+            model_list.append(model_file[:-5])
+
+    return model_list
