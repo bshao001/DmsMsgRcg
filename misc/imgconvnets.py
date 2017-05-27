@@ -102,10 +102,10 @@ class ImgConvNets(object):
             loss_list = []
             accu_list = []
             last_accu = 0.0
-            disp_step = round(self.max_steps/30)
 
             save_file = os.path.join(train_dir, result_file)
 
+            disp_step = self._get_epoch_step_count(train_set.shape[0])
             for step in range(self.max_steps):
                 # Read a batch of images and labels
                 batch_data = self._get_next_batch(train_set, step*self.batch_size)
@@ -187,14 +187,11 @@ class ImgConvNets(object):
             loss_list = []
             accu_list = []
             last_accu = 0.0
-            if self.max_steps > 10000:
-                disp_step = math.ceil(train_set.shape[0] / (self.batch_size * 1000.0)) * 1000
-            else:
-                disp_step = math.ceil(train_set.shape[0] / (self.batch_size * 100.0)) * 100
 
             save_file = os.path.join(train_dir, new_file)
 
             # Start the training loop.
+            disp_step = self._get_epoch_step_count(train_set.shape[0])
             for step in range(self.max_steps):
                 # Read a batch of images and labels
                 batch_data = self._get_next_batch(train_set, step * self.batch_size)
@@ -213,7 +210,7 @@ class ImgConvNets(object):
                 # Check to make sure the loss is decreasing
                 loss_list.append(loss_val)
                 accu_list.append(accu_val)
-                if (step % disp_step == 0) or (step == self.max_steps - 1):
+                if (step > 0 and step % disp_step == 0) or (step == self.max_steps - 1):
                     mean_accu = sum(accu_list) * 100 / len(accu_list)
                     if mean_accu >= 99.68 and mean_accu > last_accu:
                         saver.save(sess, save_file, global_step=step)
@@ -490,6 +487,14 @@ class ImgConvNets(object):
         accuracy = tf.reduce_mean(tf.cast(correct_predict, tf.float32))
         return train_op, loss, accuracy
 
+    def _get_epoch_step_count(self, train_set_size):
+        if self.max_steps > 10000:
+            epoch_step = math.ceil(train_set_size / (self.batch_size * 1000.0)) * 1000
+        else:
+            epoch_step = math.ceil(train_set_size / (self.batch_size * 100.0)) * 100
+
+        return epoch_step
+
     def _get_next_batch(self, data_set, start_index):
         cnt = data_set.shape[0]
 
@@ -507,15 +512,15 @@ class ImgConvNets(object):
     def _get_learning_rate(self, last_accu, retrain=False):
         if not self.lr_adaptive:
             return self.learning_rate
-        elif last_accu >= 99.90:
+        elif last_accu >= 99.92:
             return 9.2e-5
-        elif last_accu >= 99.82:
+        elif last_accu >= 99.84:
             return 1e-4
-        elif last_accu >= 99.74:
+        elif last_accu >= 99.76:
             return 1.2e-4
-        elif last_accu >= 99.66:
+        elif last_accu >= 99.68:
             return 1.6e-4
-        elif last_accu >= 99.58:
+        elif last_accu >= 99.60:
             return 2e-4
         elif last_accu >= 99.50:
             return 2.4e-4
