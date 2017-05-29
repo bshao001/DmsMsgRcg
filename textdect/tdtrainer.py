@@ -9,7 +9,8 @@ FEATURE_HEIGHT = 28
 FEATURE_WIDTH = 28
 
 
-def train(learning_rate, lr_adaptive, max_steps, result_file, last_file=None, retrain=False):
+def train(model, learning_rate, lr_adaptive, max_steps, result_file, last_file=None,
+          retrain=False):
     height, width = FEATURE_HEIGHT, FEATURE_WIDTH
 
     pos_feats, neg_feats = read_features_from_files(height, width)
@@ -25,8 +26,8 @@ def train(learning_rate, lr_adaptive, max_steps, result_file, last_file=None, re
     print("all_y shape: {}; and dtype={}".format(all_y.shape, all_y.dtype))
 
     res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
-    img_cnn = ImgConvNets(2, keep_prob=0.5, batch_size=64, learning_rate=learning_rate,
-                          lr_adaptive=lr_adaptive, max_steps=max_steps, model='STCNN')
+    img_cnn = ImgConvNets(model, 2, keep_prob=0.5, batch_size=64, learning_rate=learning_rate,
+                          lr_adaptive=lr_adaptive, max_steps=max_steps)
     if retrain:
         img_cnn.retrain(all_feats, all_y, height, width, res_dir,
                         last_file=last_file, new_file=result_file)
@@ -65,10 +66,11 @@ if __name__ == "__main__":
     import tensorflow as tf
     from misc.cnnpredictor import *
 
-    training = False
+    training = True
     if training:
         t0 = time()
-        train(learning_rate=1e-4, lr_adaptive=True, max_steps=330000, result_file='step1_dcnn')
+        train(model='DCNN', learning_rate=1e-4, lr_adaptive=True, max_steps=44000,
+              result_file='step1_dcnn')
         t1 = time()
         print("Training time: {:6.2f} seconds".format(t1 - t0))
     else:
@@ -79,7 +81,7 @@ if __name__ == "__main__":
         neg_cnt = neg_feats.shape[0]
 
         res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
-        model_list = get_all_models(res_dir, "step1_")
+        model_list = get_all_models(res_dir, "step1_d")
 
         with tf.Session() as sess:
             for model in model_list:

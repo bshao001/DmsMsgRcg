@@ -12,8 +12,8 @@ class ImgConvNets(object):
     for image recognition applications. All options require that image height and width
     are multiplications of 4.
     """
-    def __init__(self, class_count, keep_prob=0.5, learning_rate=1e-4, lr_adaptive=False,
-                 batch_size=32, max_steps=20000, model='STCNN'):
+    def __init__(self, model, class_count, keep_prob=0.5, learning_rate=1e-4,
+                 lr_adaptive=True, batch_size=32, max_steps=20000):
         """
         Args:
             class_count: Number of the output classes.
@@ -28,13 +28,13 @@ class ImgConvNets(object):
         """
         assert model == 'BASIC' or model == 'DCNN' or model == 'STCNN'
 
+        self.model = model
         self.class_count = class_count
         self.keep_prob = keep_prob
         self.learning_rate = learning_rate
         self.lr_adaptive = lr_adaptive
         self.batch_size = batch_size
         self.max_steps = max_steps
-        self.model = model
 
     def train(self, img_features, true_labels, img_height, img_width, train_dir, result_file):
         """
@@ -71,8 +71,8 @@ class ImgConvNets(object):
 
             # Build a Graph that computes forward prop from the inference model.
             if self.model == 'STCNN':
-                logits = self._build_inference_graph_transform(images_placeholder, img_height,
-                                                               img_width, keep_prob_placeholder)
+                logits = self._build_inference_graph_stcnn(images_placeholder, img_height,
+                                                           img_width, keep_prob_placeholder)
             elif self.model == 'DCNN':
                 logits = self._build_inference_graph_dcnn(images_placeholder, img_height,
                                                           img_width, keep_prob_placeholder)
@@ -230,7 +230,7 @@ class ImgConvNets(object):
                     accu_list = []
                     last_accu = mean_accu
 
-    def _build_inference_graph_transform(self, images, img_height, img_width, keep_prob):
+    def _build_inference_graph_stcnn(self, images, img_height, img_width, keep_prob):
         """
         Build initial inference graph.
         Args:
@@ -598,7 +598,8 @@ if __name__ == "__main__":
         print("X shape: {}, y shape: {}".format(new_X.shape, new_y.shape))
 
         res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
-        img_cn = ImgConvNets(10, lr_adaptive=True, batch_size=32, max_steps=20000, model='DCNN')
+        img_cn = ImgConvNets(model='DCNN', class_count=10, lr_adaptive=True, batch_size=32,
+                             max_steps=20000)
         img_cn.train(new_X, new_y, 20, 20, res_dir, result_file='dcnn_img')
     else:
         res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')

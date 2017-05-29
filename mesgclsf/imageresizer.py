@@ -14,7 +14,7 @@ def get_immediate_subfolders(input_dir):
 
 
 def resize_to_desired(input_img):
-    return tsf.resize(input_img, (CLS_IMG_HEIGHT, CLS_IMG_WIDTH))
+    return tsf.resize(input_img, (CLS_IMG_HEIGHT, CLS_IMG_WIDTH), mode='constant')
 
 if __name__ == "__main__":
     ext_filter = ['.jpg', '.png']

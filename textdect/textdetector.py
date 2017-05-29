@@ -1,22 +1,21 @@
 import numpy as np
 import tensorflow as tf
 from skimage import filters as flt
+from time import time
 
 from misc.cnnpredictor import CnnPredictor
 from misc.imgreader import ImgReader
 from textdect.tdtrainer import FEATURE_HEIGHT, FEATURE_WIDTH
 
 
-def detect(session, result_dir, result_file, img_file, skip=[72, 100, 72, 116], stride=5,
-           sample_limit=5, trim=True, limit_ratio=1.5, padding=4):
+def detect(detector, gray_array, skip=[72, 100, 72, 116], stride=5, sample_limit=5, trim=True,
+           limit_ratio=1.5, padding=4):
     """
     Take an image file, read and analyze the image, and returns the pixel indexes
     of all areas that contain DMS message texts.
     Args:
-        session: The TensorFlow session used to run the prediction.
-        result_dir: The full path to the folder in which the result file locates.
-        result_file: The file that saves the training results.
-        img_file: the file name of an image to be analyzed.
+        detector: A CnnPredictor constructed based on a trained model for step 1.
+        gray_array: The input image (as a numpy ndarray) to be analyzed, in gray color.
         skip: Optional. The pixels to be ignored in the border areas in each side, assuming
             no useful information is contained in these areas. Fixed to be 4 numbers, in
             the order of top, right, bottom, and left.
@@ -37,19 +36,15 @@ def detect(session, result_dir, result_file, img_file, skip=[72, 100, 72, 116], 
     """
     height, width = FEATURE_HEIGHT, FEATURE_WIDTH
 
-    img_arr = skio.imread(img_file)
-    gry_arr = skcolor.rgb2gray(img_arr)
-
     img_reader = ImgReader(height, width)
-    coords, feats = img_reader.get_image_array_features(gry_arr, skip, stride, padding=False)
+    coords, feats = img_reader.get_image_array_features(gray_array, skip, stride, padding=False)
 
     feat_images = np.asarray(feats)
     img_cnt = feat_images.shape[0]
     print("img_cnt = {}".format(img_cnt))
 
     t0 = time()
-    cnn_pred = CnnPredictor(session, result_dir, result_file)
-    _, indices = cnn_pred.predict(feat_images)
+    _, indices = detector.predict(feat_images)
     t1 = time()
     print("Prediction time: {}".format(t1-t0))
 
@@ -98,7 +93,7 @@ def detect(session, result_dir, result_file, img_file, skip=[72, 100, 72, 116], 
     if trim:
         new_areas = []
         for area in text_areas:
-            new_areas.append(_std_trim(gry_arr, area, limit_ratio, padding))
+            new_areas.append(_std_trim(gray_array, area, limit_ratio, padding))
 
         return new_areas, pos_areas
     else:
@@ -143,24 +138,26 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     from skimage import io as skio
     from skimage import color as skcolor
-    from time import time
 
     from settings import PROJECT_ROOT
     from misc.imgtools import plot_samples
 
     t0 = time()
+
     res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
-    img_file_name = os.path.join(PROJECT_ROOT, 'Data', 'Step1', 'Test', 'sign2.jpg')
+    img_file_name = os.path.join(PROJECT_ROOT, 'Data', 'Step1', 'Test', 'sign1.jpg')
+    img_arr = skio.imread(img_file_name)
+    gray_arr = skcolor.rgb2gray(img_arr)
+
     with tf.Session() as sess:
-        areas, pos_a = detect(sess, res_dir, 'step1_dcnn', img_file_name, trim=True)
+        detector = CnnPredictor(sess, res_dir, 'step1_stcnn')
+        areas, pos_a = detect(detector, gray_arr)
+
     t1 = time()
     print("Running time: {:4.2f} seconds".format(t1-t0))
 
-    img_arr = skio.imread(img_file_name)
-
     debug = False
     if debug:
-        gray_arr = skcolor.rgb2gray(img_arr)
         pos_feats = []
         for p in pos_a:
             y, x = p[0], p[1]
