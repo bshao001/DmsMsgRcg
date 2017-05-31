@@ -107,30 +107,45 @@ def _std_trim(img_arr, text_area, limit_ratio=1.5, padding=4):
     cropped_img = img_arr[y:y2, x:x2]
     filtered_img = np.array(cropped_img > flt.threshold_li(cropped_img))
 
-    std_list = []
-    for p in range(0, x2-x):
-        std = np.std(filtered_img[:, p])
-        std_list.append(std)
-        print("{:7.4f}\t".format(std), end='')
-    print('\n')
+    # Trim the filtered_img vertically
+    ver_list = []
+    for v in range(0, y2-y):
+        std = np.std(filtered_img[v, :])
+        ver_list.append(std)
 
-    limit_std = max(std_list) / limit_ratio
+    limit_ver = max(ver_list) / limit_ratio
+    new_y, new_y2 = y, y2
+    ver_size = len(ver_list)
+
+    for i in range(ver_size):
+        if ver_list[i] > limit_ver: break
+        if i >= padding: new_y += 1
+
+    for j in range(ver_size-1, 0, -1):
+        if ver_list[j] > limit_ver: break
+        if j <= ver_size-1-padding: new_y2 -= 1
+
+    ver_out_img = filtered_img[new_y-y:new_y2-y, :]
+
+    # Trim the ver_out_img horizontally
+    hor_list = []
+    for h in range(0, x2-x):
+        std = np.std(ver_out_img[:, h])
+        hor_list.append(std)
+
+    limit_hor = max(hor_list) / limit_ratio
     new_x, new_x2 = x, x2
-    list_size = len(std_list)
+    hor_size = len(hor_list)
 
-    for i in range(list_size):
-        if std_list[i] > limit_std:
-            break
-        if i >= padding:
-            new_x += 1
+    for i in range(hor_size):
+        if hor_list[i] > limit_hor: break
+        if i >= padding: new_x += 1
 
-    for j in range(list_size-1, 0, -1):
-        if std_list[j] > limit_std:
-            break
-        if j <= list_size-1-padding:
-            new_x2 -= 1
+    for j in range(hor_size-1, 0, -1):
+        if hor_list[j] > limit_hor: break
+        if j <= hor_size-1-padding: new_x2 -= 1
 
-    return [y, new_x, h, new_x2-new_x]
+    return [new_y, new_x, new_y2-new_y, new_x2-new_x]
 
 
 if __name__ == "__main__":
@@ -145,7 +160,7 @@ if __name__ == "__main__":
     t0 = time()
 
     res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
-    img_file_name = os.path.join(PROJECT_ROOT, 'Data', 'Step1', 'Test', 'sign1.jpg')
+    img_file_name = os.path.join(PROJECT_ROOT, 'Data', 'Step1', 'Test', 'sign44.jpg')
     img_arr = skio.imread(img_file_name)
     gray_arr = skcolor.rgb2gray(img_arr)
 
