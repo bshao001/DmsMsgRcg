@@ -46,21 +46,19 @@ def classify(classifier, img_arr, stride=16):
     return class_id, confidence
 
 
-def detect_and_classify(result_dir, detect_file, classify_file, gray_array):
-    with tf.Session() as s1:
-        detector = CnnPredictor(s1, result_dir, detect_file)
-        areas, _ = detect(detector, gray_array)
+def detect_and_classify(session, result_dir, detect_file, detect_scope, classify_file,
+                        classify_scope, gray_array):
+    detector = CnnPredictor(session, detect_scope, result_dir, detect_file)
+    classifier = CnnPredictor(session, classify_scope, result_dir, classify_file)
 
-    tf.reset_default_graph()
-    with tf.Session() as s2:
-        classifier = CnnPredictor(s2, result_dir, classify_file)
-        for area in areas:
-            y, x, h, w = area[0], area[1], area[2], area[3]
-            x2, y2 = x + w, y + h
+    areas, _ = detect(detector, gray_array)
+    for area in areas:
+        y, x, h, w = area[0], area[1], area[2], area[3]
+        x2, y2 = x + w, y + h
 
-            area_img = gry_arr[y:y2, x:x2]
-            cls_id, conf = classify(classifier, area_img)
-            print("class ID: {}, confidence: {}".format(cls_id, conf))
+        area_img = gry_arr[y:y2, x:x2]
+        cls_id, conf = classify(classifier, area_img)
+        print("class ID: {}, confidence: {}".format(cls_id, conf))
 
 if __name__ == "__main__":
     import os
@@ -73,11 +71,13 @@ if __name__ == "__main__":
 
     t0 = time()
     res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
-    img_file = os.path.join(PROJECT_ROOT, 'Data', 'Step1', 'Test', 'sign1.jpg')
+    img_file = os.path.join(PROJECT_ROOT, 'Data', 'Step1', 'Test', 'sign6.jpg')
     img_arr = skio.imread(img_file)
     gry_arr = skcolor.rgb2gray(img_arr)
 
-    detect_and_classify(sess, res_dir, 'step1_dcnn', 'step2_tas_basic', gry_arr)
+    with tf.Session() as sess:
+        detect_and_classify(sess, res_dir, 'step1_s1dcnn', 's1dcnn', 'step2_s2lss',
+                            's2lss', gry_arr)
 
     t1 = time()
     print("Running time: {:4.2f} seconds".format(t1-t0))

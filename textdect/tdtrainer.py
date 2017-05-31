@@ -9,8 +9,7 @@ FEATURE_HEIGHT = 28
 FEATURE_WIDTH = 28
 
 
-def train(model, learning_rate, lr_adaptive, max_steps, result_file, last_file=None,
-          retrain=False):
+def train(model, model_scope, max_steps, result_file, last_file=None, retrain=False):
     height, width = FEATURE_HEIGHT, FEATURE_WIDTH
 
     pos_feats, neg_feats = read_features_from_files(height, width)
@@ -26,14 +25,14 @@ def train(model, learning_rate, lr_adaptive, max_steps, result_file, last_file=N
     print("all_y shape: {}; and dtype={}".format(all_y.shape, all_y.dtype))
 
     res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
-    img_cnn = ImgConvNets(model, 2, keep_prob=0.5, batch_size=64, learning_rate=learning_rate,
-                          lr_adaptive=lr_adaptive, max_steps=max_steps)
+    img_cnn = ImgConvNets(model, model_scope, height, width, class_count=2, keep_prob=0.5,
+                          batch_size=64, learning_rate=1e-4, lr_adaptive=True,
+                          max_steps=max_steps)
     if retrain:
-        img_cnn.retrain(all_feats, all_y, height, width, res_dir,
-                        last_file=last_file, new_file=result_file)
+        img_cnn.retrain(all_feats, all_y, res_dir, last_file=last_file,
+                        new_file=result_file)
     else:
-        img_cnn.train(all_feats, all_y, height, width, res_dir,
-                      result_file=result_file)
+        img_cnn.train(all_feats, all_y, res_dir, result_file=result_file)
 
 
 def read_features_from_files(height, width, folder='Training'):
@@ -66,11 +65,10 @@ if __name__ == "__main__":
     import tensorflow as tf
     from misc.cnnpredictor import *
 
-    training = True
+    training = False
     if training:
         t0 = time()
-        train(model='DCNN', learning_rate=1e-4, lr_adaptive=True, max_steps=44000,
-              result_file='step1_dcnn')
+        train(model='DCNN', model_scope='s1dcnn', max_steps=165000, result_file='step1_s1dcnn')
         t1 = time()
         print("Training time: {:6.2f} seconds".format(t1 - t0))
     else:
@@ -81,11 +79,12 @@ if __name__ == "__main__":
         neg_cnt = neg_feats.shape[0]
 
         res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
-        model_list = get_all_models(res_dir, "step1_d")
+        model_list = get_all_models(res_dir, "step1_s1dcnn")
 
-        with tf.Session() as sess:
-            for model in model_list:
-                cnn_pred = CnnPredictor(sess, res_dir, model)
+        for model in model_list:
+            tf.reset_default_graph()
+            with tf.Session() as sess:
+                cnn_pred = CnnPredictor(sess, 's1dcnn', res_dir, model)
                 _, pos_arr = cnn_pred.predict(pos_feats)
                 _, neg_arr = cnn_pred.predict(neg_feats)
 

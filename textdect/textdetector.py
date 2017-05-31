@@ -150,7 +150,7 @@ if __name__ == "__main__":
     gray_arr = skcolor.rgb2gray(img_arr)
 
     with tf.Session() as sess:
-        detector = CnnPredictor(sess, res_dir, 'step1_stcnn')
+        detector = CnnPredictor(sess, 's1dcnn', res_dir, 'step1_s1dcnn')
         areas, pos_a = detect(detector, gray_arr)
 
     t1 = time()
