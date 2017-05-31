@@ -46,11 +46,7 @@ def classify(classifier, img_arr, stride=16):
     return class_id, confidence
 
 
-def detect_and_classify(session, result_dir, detect_file, detect_scope, classify_file,
-                        classify_scope, gray_array):
-    detector = CnnPredictor(session, detect_scope, result_dir, detect_file)
-    classifier = CnnPredictor(session, classify_scope, result_dir, classify_file)
-
+def detect_and_classify(detector, classifier, gray_array):
     areas, _ = detect(detector, gray_array)
     for area in areas:
         y, x, h, w = area[0], area[1], area[2], area[3]
@@ -71,13 +67,15 @@ if __name__ == "__main__":
 
     t0 = time()
     res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
-    img_file = os.path.join(PROJECT_ROOT, 'Data', 'Step1', 'Test', 'sign6.jpg')
+    img_file = os.path.join(PROJECT_ROOT, 'Data', 'Step1', 'Test', 'sign44.jpg')
     img_arr = skio.imread(img_file)
     gry_arr = skcolor.rgb2gray(img_arr)
 
     with tf.Session() as sess:
-        detect_and_classify(sess, res_dir, 'step1_s1dcnn', 's1dcnn', 'step2_s2lss',
-                            's2lss', gry_arr)
+        detector = CnnPredictor(sess, 's1dcnn', res_dir, 'step1_s1dcnn')
+        classifier = CnnPredictor(sess, 's2lss', res_dir, 'step2_s2lss')
+
+        detect_and_classify(detector, classifier, gry_arr)
 
     t1 = time()
     print("Running time: {:4.2f} seconds".format(t1-t0))
