@@ -1,8 +1,7 @@
-import numpy as np
 import os
 
 from settings import PROJECT_ROOT
-from mesgclsf.imageresizer import get_immediate_subfolders
+from mesgclsf.datapreptools import get_immediate_subfolders
 
 if __name__ == "__main__":
     ext_filter = ['.jpg', '.png']
