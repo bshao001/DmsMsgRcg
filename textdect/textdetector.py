@@ -9,7 +9,7 @@ from textdect.tdtrainer import FEATURE_HEIGHT, FEATURE_WIDTH
 
 
 def detect(detector, gray_array, skip=[72, 100, 72, 116], stride=5, sample_limit=5, trim=True,
-           limit_ratio=1.5, padding=4):
+           limit_ratio=1.5, padding=4, debug=False):
     """
     Take an image file, read and analyze the image, and returns the pixel indexes
     of all areas that contain DMS message texts.
@@ -28,6 +28,7 @@ def detect(detector, gray_array, skip=[72, 100, 72, 116], stride=5, sample_limit
             of an output area with STD values lower than the maximum STD values in the whole
             area will be trimmed.
         padding: Optional. Keep this amount of pixels (otherwise be trimmed) in the output.
+        debug: Optional. Whether to output debug information.
     Returns:
         A list of lists, each of which is a 4-numbers list describing a rectangle
         area indicating message texts contained inside: top_y, top_x, height, and
@@ -41,12 +42,14 @@ def detect(detector, gray_array, skip=[72, 100, 72, 116], stride=5, sample_limit
 
     feat_images = np.asarray(feats)
     img_cnt = feat_images.shape[0]
-    print("img_cnt = {}".format(img_cnt))
+    if debug:
+        print("img_cnt = {}".format(img_cnt))
 
     t0 = time()
     _, indices = detector.predict(feat_images)
     t1 = time()
-    print("Prediction time: {}".format(t1-t0))
+    if debug:
+        print("Prediction time: {}".format(t1-t0))
 
     pos_areas = []  # Output for debugging purpose
     hor_lines = []  # Element in format of y, x1, x2, sample_cnt
@@ -66,8 +69,9 @@ def detect(detector, gray_array, skip=[72, 100, 72, 116], stride=5, sample_limit
             if not added:
                 hor_lines.append([y, x, x+width, 1])
 
-    for h in hor_lines:
-        print("Line: {}, {}, {}, {}".format(h[0], h[1], h[2], h[3]))
+    if debug:
+        for h in hor_lines:
+            print("Line: {}, {}, {}, {}".format(h[0], h[1], h[2], h[3]))
 
     text_areas = []
     pre_y, pre_x, pre_h, pre_w = 0, 0, 0, 0
@@ -118,11 +122,13 @@ def _std_trim(img_arr, text_area, limit_ratio=1.5, padding=4):
     ver_size = len(ver_list)
 
     for i in range(ver_size):
-        if ver_list[i] > limit_ver: break
+        if ver_list[i] > limit_ver or new_y2 - new_y <= FEATURE_HEIGHT:
+            break
         if i >= padding: new_y += 1
 
     for j in range(ver_size-1, 0, -1):
-        if ver_list[j] > limit_ver: break
+        if ver_list[j] > limit_ver or new_y2 - new_y <= FEATURE_HEIGHT:
+            break
         if j <= ver_size-1-padding: new_y2 -= 1
 
     ver_out_img = filtered_img[new_y-y:new_y2-y, :]
@@ -138,11 +144,13 @@ def _std_trim(img_arr, text_area, limit_ratio=1.5, padding=4):
     hor_size = len(hor_list)
 
     for i in range(hor_size):
-        if hor_list[i] > limit_hor: break
+        if hor_list[i] > limit_hor or new_x2 - new_x <= FEATURE_WIDTH:
+            break
         if i >= padding: new_x += 1
 
     for j in range(hor_size-1, 0, -1):
-        if hor_list[j] > limit_hor: break
+        if hor_list[j] > limit_hor or new_x2 - new_x <= FEATURE_WIDTH:
+            break
         if j <= hor_size-1-padding: new_x2 -= 1
 
     return [new_y, new_x, new_y2-new_y, new_x2-new_x]
@@ -160,12 +168,12 @@ if __name__ == "__main__":
     t0 = time()
 
     res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
-    img_file_name = os.path.join(PROJECT_ROOT, 'Data', 'Step1', 'Test', 'sign44.jpg')
+    img_file_name = os.path.join(PROJECT_ROOT, 'Data', 'Temp', 'OtmImages', 's_193445_2.jpg')
     img_arr = skio.imread(img_file_name)
     gray_arr = skcolor.rgb2gray(img_arr)
 
     with tf.Session() as sess:
-        detector = CnnPredictor(sess, 's1dcnn', res_dir, 'step1_s1dcnn')
+        detector = CnnPredictor(sess, 's1', res_dir, 'step1_basic_s1')
         areas, pos_a = detect(detector, gray_arr)
 
     t1 = time()

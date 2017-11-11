@@ -104,7 +104,7 @@ def filter_test():
     plt.show()
 
 if __name__ == "__main__":
-    action = 'Rename'
+    action = 'Resize'
 
     if action == 'Resize':
         resize_images_from_step1()

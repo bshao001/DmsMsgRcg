@@ -66,19 +66,19 @@ class ImgConvNets(object):
         def_graph = tf.Graph()
         with def_graph.as_default():
             with tf.variable_scope(self.model_scope):
-                images_placeholder = tf.placeholder(tf.float32)
+                images_placeholder = tf.placeholder(tf.float32, name='images_placeholder')
                 labels_placeholder = tf.placeholder(tf.int32)
 
-                keep_prob_placeholder = tf.placeholder(tf.float32)
+                keep_prob_placeholder = tf.placeholder(tf.float32, name='keep_prob_placeholder')
                 learning_rate_placeholder = tf.placeholder(tf.float32, shape=[])
 
-            # Build a Graph that computes forward prop from the inference model.
-            if self.model == 'STCNN':
-                logits = self._build_inference_graph_stcnn(images_placeholder, keep_prob_placeholder)
-            elif self.model == 'DCNN':
-                logits = self._build_inference_graph_dcnn(images_placeholder, keep_prob_placeholder)
-            else:
-                logits = self._build_inference_graph_basic(images_placeholder, keep_prob_placeholder)
+                # Build a Graph that computes forward prop from the inference model.
+                if self.model == 'STCNN':
+                    logits = self._build_inference_graph_stcnn(images_placeholder, keep_prob_placeholder)
+                elif self.model == 'DCNN':
+                    logits = self._build_inference_graph_dcnn(images_placeholder, keep_prob_placeholder)
+                else:
+                    logits = self._build_inference_graph_basic(images_placeholder, keep_prob_placeholder)
 
             # Save the variables within the model_scope with given model_scope as prefix.
             tf.add_to_collection(self.model_scope+"images", images_placeholder)
@@ -98,7 +98,7 @@ class ImgConvNets(object):
 
             # Create a saver for writing training results.
             saver = tf.train.Saver(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES,
-                                                     scope=self.model_scope))
+                                                     scope=self.model_scope), max_to_keep=10)
 
         with tf.Session(graph=def_graph) as sess:
             sess.run(tf.global_variables_initializer())
@@ -242,77 +242,76 @@ class ImgConvNets(object):
         Returns:
             logits: Output tensor with the computed logits.
         """
-        with tf.variable_scope(self.model_scope):
-            # Transformer Layer
-            with tf.name_scope('transformer'):
-                shaped_images = tf.reshape(images, [-1, self.img_height, self.img_width, 1])
+        # Transformer Layer
+        with tf.name_scope('transformer'):
+            shaped_images = tf.reshape(images, [-1, self.img_height, self.img_width, 1])
 
-                # Define the two-layer localisation network, with a dropout layer
-                # after the first layer.
-                num_batch = 64
+            # Define the two-layer localisation network, with a dropout layer
+            # after the first layer.
+            num_batch = 64
 
-                W_fc_loc1 = tf.Variable(tf.zeros([self.img_height*self.img_width, num_batch]))
-                b_fc_loc1 = tf.Variable(
-                     tf.random_normal([num_batch], mean=0.0, stddev=0.01))
-                h_fc_loc1 = tf.nn.tanh(tf.matmul(images, W_fc_loc1) + b_fc_loc1)
+            W_fc_loc1 = tf.Variable(tf.zeros([self.img_height*self.img_width, num_batch]))
+            b_fc_loc1 = tf.Variable(
+                 tf.random_normal([num_batch], mean=0.0, stddev=0.01))
+            h_fc_loc1 = tf.nn.tanh(tf.matmul(images, W_fc_loc1) + b_fc_loc1)
 
-                h_fc_loc1_drop = tf.nn.dropout(h_fc_loc1, keep_prob)
+            h_fc_loc1_drop = tf.nn.dropout(h_fc_loc1, keep_prob)
 
-                # Initialize the transformation to use identity matrix
-                initial = np.array([[1., 0, 0], [0, 1., 0]], dtype='float32').flatten()
+            # Initialize the transformation to use identity matrix
+            initial = np.array([[1., 0, 0], [0, 1., 0]], dtype='float32').flatten()
 
-                W_fc_loc2 = tf.Variable(tf.zeros([num_batch, 6]))
-                b_fc_loc2 = tf.Variable(initial_value=initial, name='b_fc_loc2')
-                h_fc_loc2 = tf.nn.tanh(tf.matmul(h_fc_loc1_drop, W_fc_loc2) + b_fc_loc2)
+            W_fc_loc2 = tf.Variable(tf.zeros([num_batch, 6]))
+            b_fc_loc2 = tf.Variable(initial_value=initial, name='b_fc_loc2')
+            h_fc_loc2 = tf.nn.tanh(tf.matmul(h_fc_loc1_drop, W_fc_loc2) + b_fc_loc2)
 
-                # Create a spatial transformer module to identify discriminative patches
-                out_size = (self.img_height, self.img_width)
-                h_trans = transformer(shaped_images, h_fc_loc2, out_size)
-            # First Set of Convolutional Layers
-            with tf.name_scope('conv1'):
-                W_conv11 = tf.Variable(
-                    tf.truncated_normal([3, 3, 1, 32], stddev=0.1), name='W_conv11')
-                b_conv11 = tf.Variable(tf.constant(0.1, shape=[32]), name='b_conv11')
-                h_conv11 = tf.nn.relu(ImgConvNets._conv2d(h_trans, W_conv11) + b_conv11)
+            # Create a spatial transformer module to identify discriminative patches
+            out_size = (self.img_height, self.img_width)
+            h_trans = transformer(shaped_images, h_fc_loc2, out_size)
+        # First Set of Convolutional Layers
+        with tf.name_scope('conv1'):
+            W_conv11 = tf.Variable(
+                tf.truncated_normal([3, 3, 1, 32], stddev=0.1), name='W_conv11')
+            b_conv11 = tf.Variable(tf.constant(0.1, shape=[32]), name='b_conv11')
+            h_conv11 = tf.nn.relu(ImgConvNets._conv2d(h_trans, W_conv11) + b_conv11)
 
-                W_conv12 = tf.Variable(
-                    tf.truncated_normal([3, 3, 32, 32], stddev=0.1), name='W_conv12')
-                b_conv12 = tf.Variable(tf.constant(0.1, shape=[32]), name='b_conv12')
-                h_conv12 = tf.nn.relu(ImgConvNets._conv2d(h_conv11, W_conv12) + b_conv12)
+            W_conv12 = tf.Variable(
+                tf.truncated_normal([3, 3, 32, 32], stddev=0.1), name='W_conv12')
+            b_conv12 = tf.Variable(tf.constant(0.1, shape=[32]), name='b_conv12')
+            h_conv12 = tf.nn.relu(ImgConvNets._conv2d(h_conv11, W_conv12) + b_conv12)
 
-                # Output size: img_height/2 * img_width/2 * 32
-                h_pool1 = ImgConvNets._max_pool_2x2(h_conv12)
-            # Second Set of Convolutional Layers
-            with tf.name_scope('conv2'):
-                W_conv21 = tf.Variable(
-                    tf.truncated_normal([3, 3, 32, 64], stddev=0.1), name='W_conv21')
-                b_conv21 = tf.Variable(tf.constant(0.1, shape=[64]), name='b_conv21')
-                h_conv21 = tf.nn.relu(ImgConvNets._conv2d(h_pool1, W_conv21) + b_conv21)
+            # Output size: img_height/2 * img_width/2 * 32
+            h_pool1 = ImgConvNets._max_pool_2x2(h_conv12)
+        # Second Set of Convolutional Layers
+        with tf.name_scope('conv2'):
+            W_conv21 = tf.Variable(
+                tf.truncated_normal([3, 3, 32, 64], stddev=0.1), name='W_conv21')
+            b_conv21 = tf.Variable(tf.constant(0.1, shape=[64]), name='b_conv21')
+            h_conv21 = tf.nn.relu(ImgConvNets._conv2d(h_pool1, W_conv21) + b_conv21)
 
-                W_conv22 = tf.Variable(
-                    tf.truncated_normal([3, 3, 64, 64], stddev=0.1), name='W_conv22')
-                b_conv22 = tf.Variable(tf.constant(0.1, shape=[64]), name='b_conv22')
-                h_conv22 = tf.nn.relu(ImgConvNets._conv2d(h_conv21, W_conv22) + b_conv22)
+            W_conv22 = tf.Variable(
+                tf.truncated_normal([3, 3, 64, 64], stddev=0.1), name='W_conv22')
+            b_conv22 = tf.Variable(tf.constant(0.1, shape=[64]), name='b_conv22')
+            h_conv22 = tf.nn.relu(ImgConvNets._conv2d(h_conv21, W_conv22) + b_conv22)
 
-                # Output size: img_height/4 * img_width/4 * 64
-                h_pool2 = ImgConvNets._max_pool_2x2(h_conv22)
-            # Fully Connected Layers
-            with tf.name_scope("fully_connected"):
-                para_cnt = int((self.img_height/4)*(self.img_width/4)*64)
-                h_pool2_flat = tf.reshape(h_pool2, [-1, para_cnt])
-                W_fc1 = tf.Variable(
-                    tf.truncated_normal([para_cnt, 1024], stddev=0.1), name='W_fc1')
-                b_fc1 = tf.Variable(tf.constant(0.1, shape=[1024]), name='b_fc1')
-                h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
-            # Dropout to reduce overfitting
-            with tf.name_scope("dropout"):
-                h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
-            # Readout Layer
-            with tf.name_scope('readout'):
-                W_fc2 = tf.Variable(
-                    tf.truncated_normal([1024, self.class_count], stddev=0.1), name='W_fc2')
-                b_fc2 = tf.Variable(tf.constant(0.1, shape=[self.class_count]), name='b_fc2')
-                logits = tf.matmul(h_fc1_drop, W_fc2) + b_fc2
+            # Output size: img_height/4 * img_width/4 * 64
+            h_pool2 = ImgConvNets._max_pool_2x2(h_conv22)
+        # Fully Connected Layers
+        with tf.name_scope("fully_connected"):
+            para_cnt = int((self.img_height/4)*(self.img_width/4)*64)
+            h_pool2_flat = tf.reshape(h_pool2, [-1, para_cnt])
+            W_fc1 = tf.Variable(
+                tf.truncated_normal([para_cnt, 1024], stddev=0.1), name='W_fc1')
+            b_fc1 = tf.Variable(tf.constant(0.1, shape=[1024]), name='b_fc1')
+            h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
+        # Dropout to reduce overfitting
+        with tf.name_scope("dropout"):
+            h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
+        # Readout Layer
+        with tf.name_scope('readout'):
+            W_fc2 = tf.Variable(
+                tf.truncated_normal([1024, self.class_count], stddev=0.1), name='W_fc2')
+            b_fc2 = tf.Variable(tf.constant(0.1, shape=[self.class_count]), name='b_fc2')
+            logits = tf.add(tf.matmul(h_fc1_drop, W_fc2), b_fc2, name='logits')
 
         return logits
 
@@ -326,79 +325,78 @@ class ImgConvNets(object):
         Returns:
             logits: Output tensor with the computed logits.
         """
-        with tf.variable_scope(self.model_scope):
-            # First Set of Convolutional Layers
-            with tf.name_scope('conv1'):
-                shaped_images = tf.reshape(images, [-1, self.img_height, self.img_width, 1])
+        # First Set of Convolutional Layers
+        with tf.name_scope('conv1'):
+            shaped_images = tf.reshape(images, [-1, self.img_height, self.img_width, 1])
 
-                W_conv11 = tf.Variable(
-                    tf.truncated_normal([3, 3, 1, 32], stddev=0.1), name='W_conv11')
-                b_conv11 = tf.Variable(tf.constant(0.1, shape=[32]), name='b_conv11')
-                h_conv11 = tf.nn.relu(ImgConvNets._conv2d(shaped_images, W_conv11) + b_conv11)
+            W_conv11 = tf.Variable(
+                tf.truncated_normal([3, 3, 1, 32], stddev=0.1), name='W_conv11')
+            b_conv11 = tf.Variable(tf.constant(0.1, shape=[32]), name='b_conv11')
+            h_conv11 = tf.nn.relu(ImgConvNets._conv2d(shaped_images, W_conv11) + b_conv11)
 
-                W_conv12 = tf.Variable(
-                    tf.truncated_normal([1, 3, 32, 32], stddev=0.1), name='W_conv12')
-                b_conv12 = tf.Variable(tf.constant(0.1, shape=[32]), name='b_conv12')
-                h_conv12 = tf.nn.relu(ImgConvNets._conv2d(h_conv11, W_conv12)+ b_conv12)
+            W_conv12 = tf.Variable(
+                tf.truncated_normal([1, 3, 32, 32], stddev=0.1), name='W_conv12')
+            b_conv12 = tf.Variable(tf.constant(0.1, shape=[32]), name='b_conv12')
+            h_conv12 = tf.nn.relu(ImgConvNets._conv2d(h_conv11, W_conv12)+ b_conv12)
 
-                W_conv13 = tf.Variable(
-                    tf.truncated_normal([3, 1, 32, 32], stddev=0.1), name='W_conv13')
-                b_conv13 = tf.Variable(tf.constant(0.1, shape=[32]), name='b_conv13')
-                h_conv13 = tf.nn.relu(ImgConvNets._conv2d(h_conv12, W_conv13) + b_conv13)
+            W_conv13 = tf.Variable(
+                tf.truncated_normal([3, 1, 32, 32], stddev=0.1), name='W_conv13')
+            b_conv13 = tf.Variable(tf.constant(0.1, shape=[32]), name='b_conv13')
+            h_conv13 = tf.nn.relu(ImgConvNets._conv2d(h_conv12, W_conv13) + b_conv13)
 
-                W_conv14 = tf.Variable(
-                    tf.truncated_normal([3, 3, 32, 32], stddev=0.1), name='W_conv14')
-                b_conv14 = tf.Variable(tf.constant(0.1, shape=[32]), name='b_conv14')
-                h_conv14 = tf.nn.relu(ImgConvNets._conv2d(h_conv13, W_conv14) + b_conv14)
+            W_conv14 = tf.Variable(
+                tf.truncated_normal([3, 3, 32, 32], stddev=0.1), name='W_conv14')
+            b_conv14 = tf.Variable(tf.constant(0.1, shape=[32]), name='b_conv14')
+            h_conv14 = tf.nn.relu(ImgConvNets._conv2d(h_conv13, W_conv14) + b_conv14)
 
-                # Output size: img_height/2 * img_width/2 * 32
-                h_pool1 = ImgConvNets._max_pool_2x2(h_conv14)
-            # Second Set of Convolutional Layers
-            with tf.name_scope('conv2'):
-                W_conv21 = tf.Variable(
-                    tf.truncated_normal([3, 3, 32, 64], stddev=0.1), name='W_conv21')
-                b_conv21 = tf.Variable(tf.constant(0.1, shape=[64]), name='b_conv21')
-                h_conv21 = tf.nn.relu(ImgConvNets._conv2d(h_pool1, W_conv21) + b_conv21)
+            # Output size: img_height/2 * img_width/2 * 32
+            h_pool1 = ImgConvNets._max_pool_2x2(h_conv14)
+        # Second Set of Convolutional Layers
+        with tf.name_scope('conv2'):
+            W_conv21 = tf.Variable(
+                tf.truncated_normal([3, 3, 32, 64], stddev=0.1), name='W_conv21')
+            b_conv21 = tf.Variable(tf.constant(0.1, shape=[64]), name='b_conv21')
+            h_conv21 = tf.nn.relu(ImgConvNets._conv2d(h_pool1, W_conv21) + b_conv21)
 
-                W_conv22 = tf.Variable(
-                    tf.truncated_normal([1, 3, 64, 64], stddev=0.1), name='W_conv22')
-                b_conv22 = tf.Variable(tf.constant(0.1, shape=[64]), name='b_conv22')
-                h_conv22 = tf.nn.relu(ImgConvNets._conv2d(h_conv21, W_conv22) + b_conv22)
+            W_conv22 = tf.Variable(
+                tf.truncated_normal([1, 3, 64, 64], stddev=0.1), name='W_conv22')
+            b_conv22 = tf.Variable(tf.constant(0.1, shape=[64]), name='b_conv22')
+            h_conv22 = tf.nn.relu(ImgConvNets._conv2d(h_conv21, W_conv22) + b_conv22)
 
-                W_conv23 = tf.Variable(
-                    tf.truncated_normal([3, 1, 64, 64], stddev=0.1), name='W_conv23')
-                b_conv23 = tf.Variable(tf.constant(0.1, shape=[64]), name='b_conv23')
-                h_conv23 = tf.nn.relu(ImgConvNets._conv2d(h_conv22, W_conv23) + b_conv23)
+            W_conv23 = tf.Variable(
+                tf.truncated_normal([3, 1, 64, 64], stddev=0.1), name='W_conv23')
+            b_conv23 = tf.Variable(tf.constant(0.1, shape=[64]), name='b_conv23')
+            h_conv23 = tf.nn.relu(ImgConvNets._conv2d(h_conv22, W_conv23) + b_conv23)
 
-                W_conv24 = tf.Variable(
-                    tf.truncated_normal([3, 3, 64, 64], stddev=0.1), name='W_conv24')
-                b_conv24 = tf.Variable(tf.constant(0.1, shape=[64]), name='b_conv24')
-                h_conv24 = tf.nn.relu(ImgConvNets._conv2d(h_conv23, W_conv24) + b_conv24)
+            W_conv24 = tf.Variable(
+                tf.truncated_normal([3, 3, 64, 64], stddev=0.1), name='W_conv24')
+            b_conv24 = tf.Variable(tf.constant(0.1, shape=[64]), name='b_conv24')
+            h_conv24 = tf.nn.relu(ImgConvNets._conv2d(h_conv23, W_conv24) + b_conv24)
 
-                # Output size: img_height/4 * img_width/4 * 64
-                h_pool2 = ImgConvNets._max_pool_2x2(h_conv24)
-            # Fully Connected Layers
-            with tf.name_scope("fully_connected"):
-                para_cnt = int((self.img_height/4)*(self.img_width/4)*64)
-                h_pool2_flat = tf.reshape(h_pool2, [-1, para_cnt])
-                W_fc1 = tf.Variable(
-                    tf.truncated_normal([para_cnt, 1024], stddev=0.1), name='W_fc1')
-                b_fc1 = tf.Variable(tf.constant(0.1, shape=[1024]), name='b_fc1')
-                h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
+            # Output size: img_height/4 * img_width/4 * 64
+            h_pool2 = ImgConvNets._max_pool_2x2(h_conv24)
+        # Fully Connected Layers
+        with tf.name_scope("fully_connected"):
+            para_cnt = int((self.img_height/4)*(self.img_width/4)*64)
+            h_pool2_flat = tf.reshape(h_pool2, [-1, para_cnt])
+            W_fc1 = tf.Variable(
+                tf.truncated_normal([para_cnt, 1024], stddev=0.1), name='W_fc1')
+            b_fc1 = tf.Variable(tf.constant(0.1, shape=[1024]), name='b_fc1')
+            h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
 
-                W_fc2 = tf.Variable(
-                    tf.truncated_normal([1024, 1024], stddev=0.1), name='W_fc2')
-                b_fc2 = tf.Variable(tf.constant(0.1, shape=[1024]), name='b_fc2')
-                h_fc2 = tf.nn.relu(tf.matmul(h_fc1, W_fc2) + b_fc2)
-            # Dropout to reduce overfitting
-            with tf.name_scope("dropout"):
-                h_fc2_drop = tf.nn.dropout(h_fc2, keep_prob)
-            # Readout Layer
-            with tf.name_scope('readout'):
-                W_fc3 = tf.Variable(
-                    tf.truncated_normal([1024, self.class_count], stddev=0.1), name='W_fc3')
-                b_fc3 = tf.Variable(tf.constant(0.1, shape=[self.class_count]), name='b_fc3')
-                logits = tf.matmul(h_fc2_drop, W_fc3) + b_fc3
+            W_fc2 = tf.Variable(
+                tf.truncated_normal([1024, 1024], stddev=0.1), name='W_fc2')
+            b_fc2 = tf.Variable(tf.constant(0.1, shape=[1024]), name='b_fc2')
+            h_fc2 = tf.nn.relu(tf.matmul(h_fc1, W_fc2) + b_fc2)
+        # Dropout to reduce overfitting
+        with tf.name_scope("dropout"):
+            h_fc2_drop = tf.nn.dropout(h_fc2, keep_prob)
+        # Readout Layer
+        with tf.name_scope('readout'):
+            W_fc3 = tf.Variable(
+                tf.truncated_normal([1024, self.class_count], stddev=0.1), name='W_fc3')
+            b_fc3 = tf.Variable(tf.constant(0.1, shape=[self.class_count]), name='b_fc3')
+            logits = tf.add(tf.matmul(h_fc2_drop, W_fc3), b_fc3, name='logits')
 
         return logits
 
@@ -412,54 +410,53 @@ class ImgConvNets(object):
         Returns:
             logits: Output tensor with the computed logits.
         """
-        with tf.variable_scope(self.model_scope):
-            # First Set of Convolutional Layers
-            with tf.name_scope('conv1'):
-                shaped_images = tf.reshape(images, [-1, self.img_height, self.img_width, 1])
+        # First Set of Convolutional Layers
+        with tf.name_scope('conv1'):
+            shaped_images = tf.reshape(images, [-1, self.img_height, self.img_width, 1])
 
-                W_conv11 = tf.Variable(
-                    tf.truncated_normal([3, 3, 1, 32], stddev=0.1), name='W_conv11')
-                b_conv11 = tf.Variable(tf.constant(0.1, shape=[32]), name='b_conv11')
-                h_conv11 = tf.nn.relu(ImgConvNets._conv2d(shaped_images, W_conv11) + b_conv11)
+            W_conv11 = tf.Variable(
+                tf.truncated_normal([3, 3, 1, 32], stddev=0.1), name='W_conv11')
+            b_conv11 = tf.Variable(tf.constant(0.1, shape=[32]), name='b_conv11')
+            h_conv11 = tf.nn.relu(ImgConvNets._conv2d(shaped_images, W_conv11) + b_conv11)
 
-                W_conv12 = tf.Variable(
-                    tf.truncated_normal([3, 3, 32, 32], stddev=0.1), name='W_conv12')
-                b_conv12 = tf.Variable(tf.constant(0.1, shape=[32]), name='b_conv12')
-                h_conv12 = tf.nn.relu(ImgConvNets._conv2d(h_conv11, W_conv12) + b_conv12)
+            W_conv12 = tf.Variable(
+                tf.truncated_normal([3, 3, 32, 32], stddev=0.1), name='W_conv12')
+            b_conv12 = tf.Variable(tf.constant(0.1, shape=[32]), name='b_conv12')
+            h_conv12 = tf.nn.relu(ImgConvNets._conv2d(h_conv11, W_conv12) + b_conv12)
 
-                # Output size: img_height/2 * img_width/2 * 32
-                h_pool1 = ImgConvNets._max_pool_2x2(h_conv12)
-            # Second Set of Convolutional Layers
-            with tf.name_scope('conv2'):
-                W_conv21 = tf.Variable(
-                    tf.truncated_normal([3, 3, 32, 64], stddev=0.1), name='W_conv21')
-                b_conv21 = tf.Variable(tf.constant(0.1, shape=[64]), name='b_conv21')
-                h_conv21 = tf.nn.relu(ImgConvNets._conv2d(h_pool1, W_conv21) + b_conv21)
+            # Output size: img_height/2 * img_width/2 * 32
+            h_pool1 = ImgConvNets._max_pool_2x2(h_conv12)
+        # Second Set of Convolutional Layers
+        with tf.name_scope('conv2'):
+            W_conv21 = tf.Variable(
+                tf.truncated_normal([3, 3, 32, 64], stddev=0.1), name='W_conv21')
+            b_conv21 = tf.Variable(tf.constant(0.1, shape=[64]), name='b_conv21')
+            h_conv21 = tf.nn.relu(ImgConvNets._conv2d(h_pool1, W_conv21) + b_conv21)
 
-                W_conv22 = tf.Variable(
-                    tf.truncated_normal([3, 3, 64, 64], stddev=0.1), name='W_conv22')
-                b_conv22 = tf.Variable(tf.constant(0.1, shape=[64]), name='b_conv22')
-                h_conv22 = tf.nn.relu(ImgConvNets._conv2d(h_conv21, W_conv22) + b_conv22)
+            W_conv22 = tf.Variable(
+                tf.truncated_normal([3, 3, 64, 64], stddev=0.1), name='W_conv22')
+            b_conv22 = tf.Variable(tf.constant(0.1, shape=[64]), name='b_conv22')
+            h_conv22 = tf.nn.relu(ImgConvNets._conv2d(h_conv21, W_conv22) + b_conv22)
 
-                # Output size: img_height/4 * img_width/4 * 64
-                h_pool2 = ImgConvNets._max_pool_2x2(h_conv22)
-            # Fully Connected Layers
-            with tf.name_scope("fully_connected"):
-                para_cnt = int((self.img_height/4)*(self.img_width/4)*64)
-                h_pool2_flat = tf.reshape(h_pool2, [-1, para_cnt])
-                W_fc1 = tf.Variable(
-                    tf.truncated_normal([para_cnt, 1024], stddev=0.1), name='W_fc1')
-                b_fc1 = tf.Variable(tf.constant(0.1, shape=[1024]), name='b_fc1')
-                h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
-            # Dropout to reduce overfitting
-            with tf.name_scope("dropout"):
-                h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
-            # Readout Layer
-            with tf.name_scope('readout'):
-                W_fc2 = tf.Variable(
-                    tf.truncated_normal([1024, self.class_count], stddev=0.1), name='W_fc2')
-                b_fc2 = tf.Variable(tf.constant(0.1, shape=[self.class_count]), name='b_fc2')
-                logits = tf.matmul(h_fc1_drop, W_fc2) + b_fc2
+            # Output size: img_height/4 * img_width/4 * 64
+            h_pool2 = ImgConvNets._max_pool_2x2(h_conv22)
+        # Fully Connected Layers
+        with tf.name_scope("fully_connected"):
+            para_cnt = int((self.img_height/4)*(self.img_width/4)*64)
+            h_pool2_flat = tf.reshape(h_pool2, [-1, para_cnt])
+            W_fc1 = tf.Variable(
+                tf.truncated_normal([para_cnt, 1024], stddev=0.1), name='W_fc1')
+            b_fc1 = tf.Variable(tf.constant(0.1, shape=[1024]), name='b_fc1')
+            h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
+        # Dropout to reduce overfitting
+        with tf.name_scope("dropout"):
+            h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
+        # Readout Layer
+        with tf.name_scope('readout'):
+            W_fc2 = tf.Variable(
+                tf.truncated_normal([1024, self.class_count], stddev=0.1), name='W_fc2')
+            b_fc2 = tf.Variable(tf.constant(0.1, shape=[self.class_count]), name='b_fc2')
+            logits = tf.add(tf.matmul(h_fc1_drop, W_fc2), b_fc2, name='logits')
 
         return logits
 
@@ -600,9 +597,9 @@ if __name__ == "__main__":
         print("X shape: {}, y shape: {}".format(new_X.shape, new_y.shape))
 
         res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
-        img_cn = ImgConvNets(model='DCNN', model_scope='dcnn', img_height=20, img_width=20,
+        img_cn = ImgConvNets(model='BASIC', model_scope='basic', img_height=20, img_width=20,
                              class_count=10, lr_adaptive=True, batch_size=32, max_steps=8000)
-        img_cn.retrain(new_X, new_y, res_dir, last_file='digits_dcnn', new_file='digits2_dcnn')
+        img_cn.train(new_X, new_y, res_dir, result_file='digits_basic')
     else:
         res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
         img_dir = os.path.join(PROJECT_ROOT, 'Data', 'Step4', 'Test')
@@ -611,7 +608,7 @@ if __name__ == "__main__":
             img_file = os.path.join(img_dir, 'digits' + str(pred_id) + '.png')
             im1 = skio.imread(img_file)
             im2 = skcolor.rgb2gray(im1)
-            img_arr = tsf.resize(im2, (200, 200), order=1)
+            img_arr = tsf.resize(im2, (200, 200), order=1, mode='constant')
 
             images = []
             for i in range(0, 10):
@@ -637,7 +634,7 @@ if __name__ == "__main__":
             for i in np.arange(0, 10):
                 im1 = skio.imread(os.path.join(img_dir, str(i)+'Test.png'))
                 im2 = skcolor.rgb2grey(im1)
-                im3 = tsf.resize(im2, (20, 20), order=1)
+                im3 = tsf.resize(im2, (20, 20), order=1, mode='constant')
                 images.append(im3.T.reshape(-1))
 
             X_images = np.asarray(images)

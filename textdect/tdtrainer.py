@@ -68,7 +68,7 @@ if __name__ == "__main__":
     training = False
     if training:
         t0 = time()
-        train(model='DCNN', model_scope='s1dcnn', max_steps=165000, result_file='step1_s1dcnn')
+        train(model='DCNN', model_scope='s1', max_steps=220000, result_file='step1_dcnn_s1')
         t1 = time()
         print("Training time: {:6.2f} seconds".format(t1 - t0))
     else:
@@ -79,12 +79,12 @@ if __name__ == "__main__":
         neg_cnt = neg_feats.shape[0]
 
         res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
-        model_list = get_all_models(res_dir, "step1_s1dcnn")
+        model_list = get_all_models(res_dir, 'step1_stcnn')
 
         for model in model_list:
             tf.reset_default_graph()
             with tf.Session() as sess:
-                cnn_pred = CnnPredictor(sess, 's1dcnn', res_dir, model)
+                cnn_pred = CnnPredictor(sess, 's1', res_dir, model)
                 _, pos_arr = cnn_pred.predict(pos_feats)
                 _, neg_arr = cnn_pred.predict(neg_feats)
 
