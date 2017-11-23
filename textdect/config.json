@@ -1,0 +1,21 @@
+{
+  "model_architecture": "Tiny",
+
+  "image_height": 480,
+  "image_width": 480,
+
+  "image_left_skip": 85,
+  "image_right_skip": 75,
+
+  "grid_y_count": 15,
+  "grid_x_count": 15,
+
+  "grid_y_size": 32,
+  "grid_x_size": 32,
+
+  "batch_size": 32,
+  "learning_rate": 1e-4,
+  "num_epoch": 50,
+
+  "debug": true
+}
