@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
@@ -31,7 +32,7 @@ class YoloNet(object):
 
         train_batch = BatchGenerator(image_dir, train_data, self.config)
 
-        lr_schedule = keras.callbacks.LearningRateScheduler(self.schedule)
+        lr_schedule = keras.callbacks.LearningRateScheduler(self._schedule)
         checkpoint = keras.callbacks.ModelCheckpoint(weights_path_file,
                                                      monitor='loss',
                                                      verbose=1,
@@ -64,36 +65,15 @@ class YoloNet(object):
     def load_weights(self, weight_path_file):
         self.model.load_weights(weight_path_file)
 
-    def _decode_netout(self, netout):
-        grid_h, grid_w = netout.shape[:2]
-
-        boxes = []
-        for row in range(grid_h):
-            for col in range(grid_w):
-                # first 4 elements are x, y, w, and h
-                x, y, w, h = netout[row, col, :4]
-
-                x = (col + self.sigmoid(x)) * self.config['grid_x_size'] + self.config['image_left_skip']
-                y = (row + self.sigmoid(y)) * self.config['grid_y_size']
-                w = w * self.config['grid_x_size']
-                h = h * self.config['grid_y_size']
-
-                confidence = self.sigmoid(netout[row, col, 4])
-
-                if self.config['debug'] and confidence > 0.1:
-                    print("Net out: {}, {}, {}, {}, {}".format(x, y, w, h, confidence))
-
-                if confidence > 0.5:
-                    box = BoundBox(x, y, w, h)
-                    boxes.append(box)
-
-        return boxes
-
-    def schedule(self, epoch_num):
+    def _schedule(self, epoch_num):
         if self.config['debug'] and epoch_num > 0:
             print("# Starting epoch {:2d}, learning rate used in the last epoch = {:.6f}".
                   format(epoch_num+1, keras.backend.get_value(self.model.optimizer.lr)))
 
+        # The learning rate values may need to be adjusted when you configure different number of epochs,
+        # change between Full or Tiny model, or significant changes of training data size. The goal of
+        # using bigger learning rate at the first a few epochs is not only to speed up the training, but
+        # mainly to lower the chance of falling into local optima.
         if epoch_num < 1:
             return 4e-4
         elif epoch_num < 2:
@@ -112,6 +92,51 @@ class YoloNet(object):
             return 1e-4
         else:
             return 9.6e-5
+
+    def _decode_netout(self, netout):
+        grid_h, grid_w = netout.shape[:2]
+
+        conf_boxes = {}
+        for row in range(grid_h):
+            for col in range(grid_w):
+                # first 4 elements are x, y, w, and h
+                x, y, w, h = netout[row, col, :4]
+
+                x = (col + self.sigmoid(x)) * self.config['grid_x_size'] + self.config['image_left_skip']
+                y = (row + self.sigmoid(y)) * self.config['grid_y_size']
+                w = w * self.config['grid_x_size']
+                h = h * self.config['grid_y_size']
+
+                confidence = self.sigmoid(netout[row, col, 4])
+
+                if self.config['debug'] and confidence > 0.1:
+                    print("Net out: {}, {}, {}, {}, {}".format(x, y, w, h, confidence))
+
+                if confidence > 0.5:
+                    box = BoundBox(x, y, w, h)
+                    # Check if this new box is obviously (20%) overlapping with any existing boxes in
+                    # the list. If so, keep the one with higher confidence. Note that as the boxes reach
+                    # this confidence are very few, therefore, the looping efficiency is not a concern.
+                    # Also, in our use case, there are not supposed to have any overlapping boxes in the
+                    # prediction. This should also apply for most typical OCR applications.
+                    redundant = False
+                    for bx, conf in conf_boxes.items():
+                        if box.get_box_iou_with(bx) > 0.2:
+                            if conf < confidence:
+                                conf_boxes[bx] = 0.0  # Will be discarded later
+                                # Continue to check if this new one is overlapping with any others
+                            else:
+                                redundant = True
+                                break
+                    if not redundant:
+                        conf_boxes[box] = confidence
+
+        boxes = []
+        for bx, conf in conf_boxes.items():
+            if conf > 0.5:
+                boxes.append(bx)
+
+        return boxes
 
     @staticmethod
     def custom_loss(y_true, y_pred):
@@ -154,9 +179,38 @@ class BoundBox:
         self.h = h
 
     def get_coordinates(self):
-        xmin = int(self.cx - self.w/2)
-        ymin = int(self.cy - self.h/2)
-        xmax = int(self.cx + self.w/2)
-        ymax = int(self.cy + self.h/2)
+        xmin = math.floor(self.cx - self.w/2.)
+        ymin = math.floor(self.cy - self.h/2.)
+        xmax = math.ceil(self.cx + self.w/2.)
+        ymax = math.ceil(self.cy + self.h/2.)
 
         return xmin, ymin, xmax, ymax
+
+    def get_box_iou_with(self, box2):
+        x1_min, y1_min, x1_max, y1_max = self.get_coordinates()
+        x2_min, y2_min, x2_max, y2_max = box2.get_coordinates()
+
+        intersect_w = self._interval_overlap([x1_min, x1_max], [x2_min, x2_max])
+        intersect_h = self._interval_overlap([y1_min, y1_max], [y2_min, y2_max])
+
+        intersect = intersect_w * intersect_h
+
+        union = self.w * self.h + box2.w * box2.h - intersect
+
+        return float(intersect) / union
+
+    @staticmethod
+    def _interval_overlap(interval_a, interval_b):
+        x1, x2 = interval_a
+        x3, x4 = interval_b
+
+        if x3 < x1:
+            if x4 < x1:
+                return 0
+            else:
+                return min(x2, x4) - x1
+        else:
+            if x2 < x3:
+                return 0
+            else:
+                return min(x2, x4) - x3

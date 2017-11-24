@@ -15,7 +15,7 @@ def train(config_file, train_image_dir, train_label_file,  weights_path_file, tr
             file_list.append(img_file)
 
     train_data = read_image_data(file_list, train_label_file)
-    print("# Train data size: {}".format(len(train_data)))
+    print("# Training data size: {}".format(len(train_data)))
 
     yolo_net = YoloNet(config)
     yolo_net.train(train_image_dir, train_data,  weights_path_file, train_log_dir)
@@ -54,10 +54,11 @@ def read_image_data(image_file_list, label_path_file):
 if __name__ == '__main__':
     from settings import PROJECT_ROOT
 
-    img_dir = os.path.join(PROJECT_ROOT, 'Data', 'AntImages')
+    img_dir = os.path.join(PROJECT_ROOT, 'Data', 'Step1', 'Training', 'AntImages')
+    label_file = os.path.join(PROJECT_ROOT, 'Data', 'Step1', 'Training', 'label.txt')
 
-    label_file = os.path.join(PROJECT_ROOT, 'Data', 'label.txt')
     log_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result', 'Logs')
+
     weights_file = os.path.join(PROJECT_ROOT, 'Data', 'Result', 'weights.{epoch:02d}.h5')
 
     train('config.json', img_dir, label_file,  weights_file, log_dir)
