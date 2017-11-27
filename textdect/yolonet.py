@@ -1,3 +1,17 @@
+# Copyright 2017 Bo Shao. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
 import math
 import numpy as np
 import tensorflow as tf
@@ -66,7 +80,7 @@ class YoloNet(object):
         self.model.load_weights(weight_path_file)
 
     def _schedule(self, epoch_num):
-        if self.config['debug'] and epoch_num > 0:
+        if epoch_num > 0:
             print("# Starting epoch {:2d}, learning rate used in the last epoch = {:.6f}".
                   format(epoch_num+1, keras.backend.get_value(self.model.optimizer.lr)))
 
@@ -82,13 +96,13 @@ class YoloNet(object):
             return 2.4e-4
         elif epoch_num < 6:
             return 2e-4
-        elif epoch_num < 8:
+        elif epoch_num < 10:
             return 1.6e-4
-        elif epoch_num < 12:
+        elif epoch_num < 16:
             return 1.2e-4
-        elif epoch_num < 18:
+        elif epoch_num < 24:
             return 1.1e-4
-        elif epoch_num < 30:
+        elif epoch_num < 40:
             return 1e-4
         else:
             return 9.6e-5
@@ -153,7 +167,7 @@ class YoloNet(object):
         # Determine the mask: simply the position of the ground truth boxes (the predictors)
         true_mask = tf.expand_dims(y_true[..., 4], axis=-1)
 
-        # Calculate the loss. A scale is associated with each loss, indicating how important
+        # Calculate the loss. A scale can be associated with each loss, indicating how important
         # the loss is. The bigger the scale, more important the loss is.
         loss_xy = tf.reduce_sum(tf.square(true_box_xy - pred_box_xy) * true_mask) * 1.0
         loss_wh = tf.reduce_sum(tf.square(true_box_wh - pred_box_wh) * true_mask) * 1.0

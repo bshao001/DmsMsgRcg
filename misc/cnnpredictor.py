@@ -4,6 +4,7 @@ import tensorflow as tf
 import threading
 from datetime import datetime as dt
 
+
 class CnnPredictor(object):
     """
     This predictor serves as an alternative approach to predict the classes in case we
@@ -77,6 +78,7 @@ class CnnPredictor(object):
             assert values.shape[0] == feat_cnt and indices.shape[0] == feat_cnt
 
             return values, indices
+
 
 def get_all_models(model_dir, prefix):
     """

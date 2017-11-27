@@ -1,5 +1,5 @@
 {
-  "model_architecture": "Tiny",
+  "model_architecture": "Full",
 
   "image_height": 480,
   "image_width": 480,
@@ -13,7 +13,7 @@
   "grid_y_size": 32,
   "grid_x_size": 32,
 
-  "batch_size": 32,
+  "batch_size": 16,
   "num_epoch": 50,
 
   "debug": false
