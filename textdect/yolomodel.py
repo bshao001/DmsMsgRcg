@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-import tensorflow as tf
 from tensorflow import keras
 
 
@@ -20,6 +19,7 @@ class FullYolo(object):
     def __init__(self, img_height, img_width, grid_h, grid_w):
         # The function to implement the organization layer (thanks to github.com/allanzelener/YAD2K)
         def space_to_depth_x2(x):
+            import tensorflow as tf
             return tf.space_to_depth(x, block_size=2)
 
         input_image = keras.layers.Input(shape=(img_height, img_width, 3))

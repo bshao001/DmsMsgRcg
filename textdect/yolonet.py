@@ -63,8 +63,8 @@ class YoloNet(object):
                                  epochs=self.config['num_epoch'],
                                  verbose=2,
                                  callbacks=[lr_schedule, checkpoint, tensorboard],
-                                 workers=3,
-                                 max_queue_size=8)
+                                 workers=2,
+                                 max_queue_size=16)
 
     def predict(self, image):
         input_image = self.normalize(image[:, self.config['image_left_skip']:-self.config['image_right_skip'],
@@ -72,7 +72,7 @@ class YoloNet(object):
         input_image = np.expand_dims(input_image, 0)
 
         netout = self.model.predict(input_image)[0]
-        boxes = self._decode_netout(netout)
+        boxes = self.decode_netout(self.config, netout)
 
         return boxes
 
@@ -86,28 +86,29 @@ class YoloNet(object):
 
         # The learning rate values may need to be adjusted when you configure different number of epochs,
         # change between Full or Tiny model, or significant changes of training data size. The goal of
-        # using bigger learning rate at the first a few epochs is not only to speed up the training, but
-        # mainly to lower the chance of falling into local optima.
-        if epoch_num < 1:
+        # using bigger learning rate at the first a few epochs is not to speed up the training, but to
+        # lower the chance of falling into local optima.
+        if epoch_num < 2:
             return 4e-4
-        elif epoch_num < 2:
-            return 3.2e-4
         elif epoch_num < 4:
-            return 2.4e-4
+            return 3.2e-4
         elif epoch_num < 6:
+            return 2.4e-4
+        elif epoch_num < 8:
             return 2e-4
         elif epoch_num < 10:
             return 1.6e-4
-        elif epoch_num < 16:
+        elif epoch_num < 15:
             return 1.2e-4
-        elif epoch_num < 24:
+        elif epoch_num < 20:
             return 1.1e-4
         elif epoch_num < 40:
             return 1e-4
         else:
             return 9.6e-5
 
-    def _decode_netout(self, netout):
+    @staticmethod
+    def decode_netout(config, netout):
         grid_h, grid_w = netout.shape[:2]
 
         conf_boxes = {}
@@ -116,17 +117,17 @@ class YoloNet(object):
                 # first 4 elements are x, y, w, and h
                 x, y, w, h = netout[row, col, :4]
 
-                x = (col + self.sigmoid(x)) * self.config['grid_x_size'] + self.config['image_left_skip']
-                y = (row + self.sigmoid(y)) * self.config['grid_y_size']
-                w = w * self.config['grid_x_size']
-                h = h * self.config['grid_y_size']
+                x = (col + YoloNet.sigmoid(x)) * config['grid_x_size'] + config['image_left_skip']
+                y = (row + YoloNet.sigmoid(y)) * config['grid_y_size']
+                w = w * config['grid_x_size']
+                h = h * config['grid_y_size']
 
-                confidence = self.sigmoid(netout[row, col, 4])
+                confidence = YoloNet.sigmoid(netout[row, col, 4])
 
-                if self.config['debug'] and confidence > 0.1:
+                if config['debug'] and confidence > 0.1:
                     print("Net out: {}, {}, {}, {}, {}".format(x, y, w, h, confidence))
 
-                if confidence > 0.5:
+                if confidence > 0.6:
                     box = BoundBox(x, y, w, h)
                     # Check if this new box is obviously (20%) overlapping with any existing boxes in
                     # the list. If so, keep the one with higher confidence. Note that as the boxes reach
@@ -147,7 +148,7 @@ class YoloNet(object):
 
         boxes = []
         for bx, conf in conf_boxes.items():
-            if conf > 0.5:
+            if conf > 0.6:
                 boxes.append(bx)
 
         return boxes
