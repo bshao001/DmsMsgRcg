@@ -36,18 +36,21 @@ class ConvertedModel(object):
         tf.import_graph_def(graph_def, input_map=None, return_elements=None,
                             name="{}/".format(model_scope))
 
-        # Using the lines commented in s1_predict method to look for the tensor name of the input node
+        # Uncomment the two lines below to look for the names of all the operations in the graph
+        # for op in graph.get_operations():
+        #    print(op.name)
+
+        # Using the lines commented above to look for the tensor name of the input node
         # Or you can figure it out in your original model, if you explicitly named it.
         self.input_tensor = graph.get_tensor_by_name("s1_keras/input_1:0")
         self.output_tensor = graph.get_tensor_by_name("s1_keras/s1_output0:0")
 
     def predict(self, session, image):
         input_image = YoloNet.normalize(image[:, self.config['image_left_skip']:-self.config['image_right_skip'],
-                                     ::-1])
+                                        ::-1])
         input_image = np.expand_dims(input_image, 0)
-        # This session.run line corresponds to model.predict() method in Keras.
-        # For most models, you only need this line to work. All others are
-        # specific to this application.
+        # This session.run line corresponds to model.predict() method in Keras. For most other
+        # models, you only need this line to work. All others are specific to this application.
         netout = session.run(self.output_tensor,
                              feed_dict={self.input_tensor: input_image})[0]
         boxes = YoloNet.decode_netout(self.config, netout)
@@ -63,10 +66,6 @@ def s1_predict(config_file, model_dir, model_file, predict_file_list, out_dir):
         converted_model = ConvertedModel(config, graph, 's1_keras', model_dir, model_file)
 
     with tf.Session(graph=graph) as sess:
-        # Uncomment the two lines below to look for the names of all the operations in the graph
-        # for op in graph.get_operations():
-        #     print(op.name)
-
         for img_file in predict_file_list:
             image = cv2.imread(img_file)
             boxes = converted_model.predict(sess, image)
