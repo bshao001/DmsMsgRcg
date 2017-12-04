@@ -80,21 +80,14 @@ class ImgConvNets(object):
                 else:
                     logits = self._build_inference_graph_basic(images_placeholder, keep_prob_placeholder)
 
+                # Add to the Graph the Ops that calculate and apply gradients.
+                train_op, loss, accuracy = \
+                    self._build_training_graph(logits, labels_placeholder, learning_rate_placeholder)
+
             # Save the variables within the model_scope with given model_scope as prefix.
             tf.add_to_collection(self.model_scope+"images", images_placeholder)
-            tf.add_to_collection(self.model_scope+"labels", labels_placeholder)
-
             tf.add_to_collection(self.model_scope+"keep_prob", keep_prob_placeholder)
-            tf.add_to_collection(self.model_scope+"learning_rate", learning_rate_placeholder)
             tf.add_to_collection(self.model_scope+"logits", logits)
-
-            # Add to the Graph the Ops that calculate and apply gradients.
-            train_op, loss, accuracy = \
-                self._build_training_graph(logits, labels_placeholder, learning_rate_placeholder)
-
-            tf.add_to_collection(self.model_scope+"train_op", train_op)
-            tf.add_to_collection(self.model_scope+"loss", loss)
-            tf.add_to_collection(self.model_scope+"accuracy", accuracy)
 
             # Create a saver for writing training results.
             saver = tf.train.Saver(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES,
@@ -136,97 +129,13 @@ class ImgConvNets(object):
                     elif step == self.max_steps - 1:
                         saver.save(sess, save_file)
 
-                    print("Step {:6d}: learning_rate used = {:.6f}, average loss = {:7.4f}, "
+                    print("Step {:6d}: learning_rate used = {:.6f}, average loss = {:8.4f}, "
                           "and training accuracy min = {:6.2f}%, mean = {:6.2f}%, "
                           "max = {:6.2f}%".format(step, lr_feed,
                                                   sum(loss_list)/len(loss_list),
                                                   min(accu_list)*100, mean_accu,
                                                   max(accu_list)*100))
                     if mean_accu >= 99.99: break
-
-                    loss_list = []
-                    accu_list = []
-                    last_accu = mean_accu
-
-
-    def retrain(self, img_features, true_labels, train_dir, last_file, new_file):
-        """
-        Note that img_height * img_width must match the column size of the img_features. The
-        training result is saved in files including logits named logits, and placeholders named:
-        images, labels, and keep_prob, which can be later retrieved the collection for further
-        training or prediction.
-        Args:
-            img_features: A 2-D ndarray (matrix) each row of which holds the pixels as
-                features of one image. The row number will be the training sample size.
-            true_labels: The true labels of the training samples.
-            train_dir: The full path to the folder in which the last_file and new_file locate.
-            last_file: Name of the file that saved the training result of the previous training.
-            new_file: The file name to save the train result.
-        """
-        rows, cols = img_features.shape
-        if cols != self.img_height * self.img_width:
-            raise ValueError("Image feature dimension does not match the given "
-                             "image size parameters")
-
-        train_set = np.random.permutation(np.append(img_features, true_labels, axis=1))
-
-        with tf.Session(graph=tf.Graph()) as sess:
-            rest_s = tf.train.import_meta_graph(os.path.join(train_dir, last_file + ".meta"))
-            rest_s.restore(sess, os.path.join(train_dir, last_file))
-
-            # Retrieve the Ops we 'remembered'.
-            images_placeholder = tf.get_collection(self.model_scope+"images")[0]
-            labels_placeholder = tf.get_collection(self.model_scope+"labels")[0]
-            keep_prob_placeholder = tf.get_collection(self.model_scope+"keep_prob")[0]
-            learning_rate_placeholder = tf.get_collection(self.model_scope+"learning_rate")[0]
-
-            train_op = tf.get_collection(self.model_scope+"train_op")[0]
-            loss = tf.get_collection(self.model_scope+"loss")[0]
-            accuracy = tf.get_collection(self.model_scope+"accuracy")[0]
-
-            # Prepare the variables for result output
-            loss_list = []
-            accu_list = []
-            last_accu = 0.0
-
-            saver = tf.train.Saver(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES,
-                                                     scope=self.model_scope))
-            save_file = os.path.join(train_dir, new_file)
-
-            # Start the training loop.
-            disp_step = self._get_epoch_step_count(train_set.shape[0])
-            for step in range(self.max_steps):
-                # Read a batch of images and labels
-                batch_data = self._get_next_batch(train_set, step * self.batch_size)
-                images_feed, labels_feed = \
-                    batch_data[:, :cols], batch_data[:, cols:].reshape(-1)
-
-                lr_feed = self._get_learning_rate(last_accu, retrain=True)
-                # Run one step of the model.  The return values are the activations from
-                # the train_op (which is discarded), the loss Op, and the accuracy
-                _, loss_val, accu_val = sess.run([train_op, loss, accuracy],
-                                                 feed_dict={images_placeholder: images_feed,
-                                                            labels_placeholder: labels_feed,
-                                                            learning_rate_placeholder: lr_feed,
-                                                            keep_prob_placeholder: self.keep_prob})
-
-                # Check to make sure the loss is decreasing
-                loss_list.append(loss_val)
-                accu_list.append(accu_val)
-                if (step > 0 and step % disp_step == 0) or (step == self.max_steps - 1):
-                    mean_accu = sum(accu_list) * 100 / len(accu_list)
-                    if mean_accu >= 99.68 and mean_accu > last_accu:
-                        saver.save(sess, save_file, global_step=step, write_meta_graph=False)
-                    elif step == self.max_steps - 1:
-                        saver.save(sess, save_file, write_meta_graph=False)
-
-                    print("Step {:6d}: learning_rate used = {:.6f}, average loss = {:9.6f}, "
-                          "and training accuracy min = {:6.2f}%, mean = {:6.2f}%, "
-                          "max = {:6.2f}%".format(step, lr_feed,
-                                                  sum(loss_list)/len(loss_list),
-                                                  min(accu_list)*100, mean_accu,
-                                                  max(accu_list)*100))
-                    if step > 0 and mean_accu >= 99.99: break
 
                     loss_list = []
                     accu_list = []
@@ -472,16 +381,15 @@ class ImgConvNets(object):
             train_op: The Op for training.
             loss: The Op for calculating loss.
         """
-        with tf.variable_scope(self.model_scope):
-            # Create an operation that calculates loss.
-            labels = tf.to_int64(labels)
-            cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
-                logits=logits, labels=labels, name='xentropy')
-            loss = tf.reduce_mean(cross_entropy, name='xentropy_mean')
-            train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss)
+        # Create an operation that calculates loss.
+        labels = tf.to_int64(labels)
+        cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
+            logits=logits, labels=labels, name='xentropy')
+        loss = tf.reduce_mean(cross_entropy, name='xentropy_mean')
+        train_op = tf.train.AdamOptimizer(learning_rate).minimize(loss)
 
-            correct_predict = tf.nn.in_top_k(logits, labels, 1)
-            accuracy = tf.reduce_mean(tf.cast(correct_predict, tf.float32))
+        correct_predict = tf.nn.in_top_k(logits, labels, 1)
+        accuracy = tf.reduce_mean(tf.cast(correct_predict, tf.float32))
 
         return train_op, loss, accuracy
 
@@ -507,7 +415,7 @@ class ImgConvNets(object):
             end = end % cnt
             return np.concatenate((data_set[start:], data_set[:end]))
 
-    def _get_learning_rate(self, last_accu, retrain=False):
+    def _get_learning_rate(self, last_accu):
         if not self.lr_adaptive:
             return self.learning_rate
         elif last_accu >= 99.92:
@@ -524,8 +432,6 @@ class ImgConvNets(object):
             return 2.4e-4
         elif last_accu >= 99.00:
             return 3.2e-4
-        elif retrain:
-            return 2e-4
         else:
             return 4e-4
 
@@ -569,86 +475,3 @@ class ImgConvNets(object):
     def _max_pool_2x2(cls, X):
         return tf.nn.max_pool(X, ksize=[1, 2, 2, 1],
                               strides=[1, 2, 2, 1], padding='SAME')
-
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-    from scipy import io as spio
-    from skimage import color as skcolor
-    from skimage import io as skio
-    from skimage import transform as tsf
-
-    from settings import PROJECT_ROOT
-    from misc.imgtools import *
-
-    training = True
-    pred_type, pred_id = 0, 1
-
-    if training:
-        mat_data_file = os.path.join(PROJECT_ROOT, 'Data', 'Step4', 'Training', 'ex4data1.mat')
-        data_dict = spio.loadmat(mat_data_file)
-        X = data_dict['X']
-        y = data_dict['y'] % 10
-
-        l_rot_X = threshold_filtered_images(rotated_images(X, 20, 20, -25), 20, 20)
-        r_rot_X = threshold_filtered_images(rotated_images(X, 20, 20, 25), 20, 20)
-        new_X = np.append(np.append(X, l_rot_X, axis=0), r_rot_X, axis=0)
-        new_y = np.append(np.append(y, y, axis=0), y, axis=0)
-
-        print("X shape: {}, y shape: {}".format(new_X.shape, new_y.shape))
-
-        res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
-        img_cn = ImgConvNets(model='BASIC', model_scope='basic', img_height=20, img_width=20,
-                             class_count=10, lr_adaptive=True, batch_size=32, max_steps=8000)
-        img_cn.train(new_X, new_y, res_dir, result_file='digits_basic')
-    else:
-        res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
-        img_dir = os.path.join(PROJECT_ROOT, 'Data', 'Step4', 'Test')
-
-        if pred_type == 0:
-            img_file = os.path.join(img_dir, 'digits' + str(pred_id) + '.png')
-            im1 = skio.imread(img_file)
-            im2 = skcolor.rgb2gray(im1)
-            img_arr = tsf.resize(im2, (200, 200), order=1, mode='constant')
-
-            images = []
-            for i in range(0, 10):
-                for j in range(0, 10):
-                    dir_arr = img_arr[20 * i:20 * i + 20, 20 * j:20 * j + 20].T.reshape(-1)
-                    images.append(dir_arr)
-
-            X_images = np.asarray(images)
-            flt_images = threshold_filtered_images(X_images, 20, 20)
-
-            values, indices = ImgConvNets.predict('dcnn', res_dir, 'digits2_dcnn', flt_images)
-
-            print('Predicted values for the image:')
-            for i in range(0, 10):
-                for j in range(0, 10):
-                    print('{}\t'.format(indices[i * 10 + j][0]), end='')
-                print('\n')
-
-            plot_samples(X_images, img_height=20, img_width=20, shuffle=False)
-        else:
-            # Predict 10 new hand-written digits
-            images = []
-            for i in np.arange(0, 10):
-                im1 = skio.imread(os.path.join(img_dir, str(i)+'Test.png'))
-                im2 = skcolor.rgb2grey(im1)
-                im3 = tsf.resize(im2, (20, 20), order=1, mode='constant')
-                images.append(im3.T.reshape(-1))
-
-            X_images = np.asarray(images)
-            print("X_images shape: {}".format(X_images.shape))
-            flt_images = threshold_filtered_images(X_images, 20, 20)
-
-            values, indices = ImgConvNets.predict('dcnn', res_dir, 'digits2_dcnn', flt_images, k=3)
-
-            for i in range(0, 10):
-                print('{}th image is: {} with prob {:5.2f}% or {} with prob {:5.2f}% '
-                      'or {} with prob {:5.2f}%'.
-                      format(i,
-                             indices[i][0], values[i][0]*100,
-                             indices[i][1], values[i][1]*100,
-                             indices[i][2], values[i][2]*100))
-
-            plot_samples(X_images, img_height=20, img_width=20, shuffle=False)

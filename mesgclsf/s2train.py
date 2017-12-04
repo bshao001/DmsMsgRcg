@@ -9,7 +9,7 @@ FEATURE_HEIGHT = 28
 FEATURE_WIDTH = 32
 
 
-def train_tas(model, model_scope, max_steps, result_file, last_file=None, retrain=False):
+def train_tas(model, model_scope, max_steps, result_file):
     height, width = FEATURE_HEIGHT, FEATURE_WIDTH
 
     feats0, feats1 = read_features_tas(height, width)
@@ -27,13 +27,11 @@ def train_tas(model, model_scope, max_steps, result_file, last_file=None, retrai
     res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
     img_cnn = ImgConvNets(model, model_scope, height, width, class_count=2, keep_prob=0.5,
                           batch_size=32, learning_rate=1e-4, lr_adaptive=True, max_steps=max_steps)
-    if retrain:
-        img_cnn.retrain(all_feats, all_y, res_dir, last_file=last_file, new_file=result_file)
-    else:
-        img_cnn.train(all_feats, all_y, res_dir, result_file=result_file)
+
+    img_cnn.train(all_feats, all_y, res_dir, result_file=result_file)
 
 
-def train_lss(model, model_scope, max_steps, result_file, last_file=None, retrain=False):
+def train_lss(model, model_scope, max_steps, result_file):
     height, width = FEATURE_HEIGHT, FEATURE_WIDTH
 
     feats0, feats1, feats2, feats3 = read_features_lss(height, width)
@@ -55,10 +53,8 @@ def train_lss(model, model_scope, max_steps, result_file, last_file=None, retrai
     res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
     img_cnn = ImgConvNets(model, model_scope, height, width, class_count=4, keep_prob=0.5,
                           batch_size=32, learning_rate=1e-4, lr_adaptive=True, max_steps=max_steps)
-    if retrain:
-        img_cnn.retrain(all_feats, all_y, res_dir, last_file=last_file, new_file=result_file)
-    else:
-        img_cnn.train(all_feats, all_y, res_dir, result_file=result_file)
+
+    img_cnn.train(all_feats, all_y, res_dir, result_file=result_file)
 
 
 def read_features_tas(height, width, folder='Training'):
@@ -68,12 +64,10 @@ def read_features_tas(height, width, folder='Training'):
     closed_dir = os.path.join(base_dir, 'Closed1')
 
     img_reader = ImgReader(height, width)
-    toll_feats = np.asarray(
-        img_reader.get_features_all_images(toll_dir, skip=[0, 0, 0, 0], stride=2),
-        dtype=np.float32)
-    closed_feats = np.asarray(
-        img_reader.get_features_all_images(closed_dir, skip=[0, 0, 0, 0], stride=1),
-        dtype=np.float32)
+    toll_feats = np.asarray(img_reader.get_features_all_images(toll_dir, stride=2),
+                            dtype=np.float32)
+    closed_feats = np.asarray(img_reader.get_features_all_images(closed_dir, stride=1),
+                              dtype=np.float32)
 
     return toll_feats, closed_feats
 
@@ -87,18 +81,14 @@ def read_features_lss(height, width, folder='Training'):
     congested_dir = os.path.join(base_dir, 'Congested3')
 
     img_reader = ImgReader(height, width)
-    zerotoll_feats = np.asarray(
-        img_reader.get_features_all_images(zerotoll_dir, skip=[0, 0, 0, 0], stride=1),
-        dtype=np.float32)
-    closed_feats = np.asarray(
-        img_reader.get_features_all_images(closed_dir, skip=[0, 0, 0, 0], stride=1),
-        dtype=np.float32)
-    normal_feats = np.asarray(
-        img_reader.get_features_all_images(normal_dir, skip=[0, 0, 0, 0], stride=1),
-        dtype=np.float32)
-    congested_feats = np.asarray(
-        img_reader.get_features_all_images(congested_dir, skip=[0, 0, 0, 0], stride=1),
-        dtype=np.float32)
+    zerotoll_feats = np.asarray(img_reader.get_features_all_images(zerotoll_dir, stride=1),
+                                dtype=np.float32)
+    closed_feats = np.asarray(img_reader.get_features_all_images(closed_dir, stride=1),
+                              dtype=np.float32)
+    normal_feats = np.asarray(img_reader.get_features_all_images(normal_dir, stride=1),
+                              dtype=np.float32)
+    congested_feats = np.asarray(img_reader.get_features_all_images(congested_dir, stride=1),
+                                 dtype=np.float32)
 
     return zerotoll_feats, closed_feats, normal_feats, congested_feats
 
@@ -107,15 +97,15 @@ if __name__ == "__main__":
     import tensorflow as tf
     from misc.cnnpredictor import CnnPredictor
 
-    training = False
+    training = True
     data_type = 'LSS'
 
     if training:
         t0 = time()
         if data_type == 'TAS':
-            train_tas(model='BASIC', model_scope='s2tas', max_steps=8000, result_file='step2_s2tas')
+            train_tas(model='BASIC', model_scope='s2tas', max_steps=16000, result_file='step2_s2tas')
         else:
-            train_lss(model='BASIC', model_scope='s2lss', max_steps=8000, result_file='step2_s2lss')
+            train_lss(model='BASIC', model_scope='s2lss', max_steps=16000, result_file='step2_s2lss')
 
         t1 = time()
         print("Training time: {:6.2f} seconds".format(t1 - t0))

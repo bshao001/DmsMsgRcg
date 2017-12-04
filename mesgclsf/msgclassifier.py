@@ -5,7 +5,7 @@ from collections import Counter
 from misc.cnnpredictor import CnnPredictor
 from textdect.textdetector import detect
 from mesgclsf.datapreptools import resize_to_desired
-from mesgclsf.mctrainer import FEATURE_HEIGHT, FEATURE_WIDTH
+from mesgclsf.s2train import FEATURE_HEIGHT, FEATURE_WIDTH
 
 
 def classify(classifier, img_arr, stride=16):

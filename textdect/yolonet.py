@@ -88,17 +88,17 @@ class YoloNet(object):
         # change between Full or Tiny model, or significant changes of training data size. The goal of
         # using bigger learning rate at the first a few epochs is not to speed up the training, but to
         # lower the chance of falling into local optima.
-        if epoch_num < 2:
+        if epoch_num < 1:
             return 4e-4
-        elif epoch_num < 4:
+        elif epoch_num < 3:
             return 3.2e-4
-        elif epoch_num < 6:
+        elif epoch_num < 5:
             return 2.4e-4
         elif epoch_num < 8:
             return 2e-4
-        elif epoch_num < 10:
+        elif epoch_num < 12:
             return 1.6e-4
-        elif epoch_num < 15:
+        elif epoch_num < 16:
             return 1.2e-4
         elif epoch_num < 20:
             return 1.1e-4

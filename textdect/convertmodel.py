@@ -97,7 +97,7 @@ def convert(model_dir, keras_model_file, tf_model_file, name_output='s1_output',
     with tf.gfile.GFile(output_file, "wb") as f:
         f.write(constant_graph.SerializeToString())
 
-    print("Converted model saved as {}.".format(tf_model_file))
+    print("Converted model was saved as {}.".format(tf_model_file))
 
 
 if __name__ == '__main__':
