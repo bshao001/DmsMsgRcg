@@ -82,9 +82,10 @@ def freeze(model_scope, model_dir, model_file):
 
         print("Freezed model was saved as {}.pb.".format(model_file))
 
+
 if __name__ == "__main__":
     from settings import PROJECT_ROOT
 
     res_dir = os.path.join(PROJECT_ROOT, "Data", "Result")
-    model_scope = "s2lss"
-    freeze(model_scope, res_dir, "step2_s2lss")
+    model_scope = "s2_lss"
+    freeze(model_scope, res_dir, "s2_lss_model")

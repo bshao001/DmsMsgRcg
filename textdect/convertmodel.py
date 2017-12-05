@@ -47,8 +47,8 @@ class ConvertedModel(object):
 
         # Using the lines commented above to look for the tensor name of the input node
         # Or you can figure it out in your original model, if you explicitly named it.
-        self.input_tensor = graph.get_tensor_by_name("s1_keras/input_1:0")
-        self.output_tensor = graph.get_tensor_by_name("s1_keras/s1_output0:0")
+        self.input_tensor = graph.get_tensor_by_name("{}/input_1:0".format(model_scope))
+        self.output_tensor = graph.get_tensor_by_name("{}/s1_output0:0".format(model_scope))
 
     def predict(self, session, image):
         input_image = YoloNet.normalize(image[:, self.config['image_left_skip']:-self.config['image_right_skip'],
@@ -116,11 +116,12 @@ if __name__ == '__main__':
     if action == 'convert':
         model_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
         keras_model = 's1_model_weights.h5'  # model architecture and weights
-        tf_model = 's1_graph_weights.pb'
+        # will use model_scope as the first part of the filename of the .pb files across the whole project
+        tf_model = 's1_keras_model.pb'
         convert(model_dir, keras_model, tf_model)
     else:  # predict
         model_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
-        model_file = 's1_graph_weights.pb'
+        model_file = 's1_keras_model.pb'
         img_dir = os.path.join(PROJECT_ROOT, 'Data', 'OtmImages')
         out_dir = os.path.join(PROJECT_ROOT, 'Data', 'Temp')
 

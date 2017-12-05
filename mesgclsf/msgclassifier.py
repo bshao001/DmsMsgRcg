@@ -13,7 +13,7 @@ def classify(classifier, session, img_arr, stride=16):
     Take an image file (an output from the first step), read and analyze the image, and 
     returns the class ID of the input image based on the message content on it.
     Args:
-        classifier: A CnnPredictor constructed based on a trained model for step 2.
+        classifier: A FreezedModel constructed based on a trained model for step 2.
         session: The TensorFlow session.
         img_arr: A numpy ndarray that holds the image features.
         stride: Optional. The stride of the sliding.
@@ -47,7 +47,7 @@ def classify(classifier, session, img_arr, stride=16):
     return class_id, confidence
 
 
-def detect_and_classify(detector, classifier, session, image_array):
+def detect_and_classify(detector, classifier, session, image_array, debug=False):
     boxes = detector.predict(session, image_array)
     for box in boxes:
         xmin, ymin, xmax, ymax = box.get_coordinates()
@@ -55,9 +55,11 @@ def detect_and_classify(detector, classifier, session, image_array):
 
         area_img = gry_arr[ymin:ymax, xmin:xmax]
         cls_id, conf = classify(classifier, session, area_img)
-        print("class ID: {}, confidence: {}".format(cls_id, conf))
 
-        cv2.rectangle(image_array, (xmin, ymin), (xmax, ymax), (255, 0, 0), 1)
+        if debug:
+            cv2.rectangle(image_array, (xmin, ymin), (xmax, ymax), (255, 0, 0), 1)
+            print("class ID: {}, confidence: {}".format(cls_id, conf))
+
 
 if __name__ == "__main__":
     import cv2
@@ -70,22 +72,30 @@ if __name__ == "__main__":
     from settings import PROJECT_ROOT
 
     t0 = time()
+
     model_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
-    s1_model = 's1_graph_weights.pb'
-    s2_model = 'step2_s2lss.pb'
-    img_file = os.path.join(PROJECT_ROOT, 'Data', 'Step1', 'Test', 'sign42.jpg')
+    s1_model = 's1_keras_model.pb'
+    lss_model = 's2_lss_model.pb'
+    tas_model = 's2_tas_model.pb'
+
+    sign_type = 'LSS'  # or TAS
+    img_file = os.path.join(PROJECT_ROOT, 'Data', 'Step1', 'Test', '10.jpg')
     img_arr = cv2.imread(img_file)
 
-    config_file = os.path.join(PROJECT_ROOT, 'textdect', 'config.json')
-    with open(config_file) as config_buffer:
-        config = json.loads(config_buffer.read())
+    s1_config_file = os.path.join(PROJECT_ROOT, 'textdect', 'config.json')
+    with open(s1_config_file) as config_buffer:
+        s1_config = json.loads(config_buffer.read())
 
     with tf.Graph().as_default() as graph:
-        detector = ConvertedModel(config, graph, 's1_keras', model_dir, s1_model)
-        classifier = FreezedModel(graph, 's2lss', model_dir, s2_model)
+        detector = ConvertedModel(s1_config, graph, 's1_keras', model_dir, s1_model)
+        lss_classifier = FreezedModel(graph, 's2_lss', model_dir, lss_model)
+        tas_classifier = FreezedModel(graph, 's2_tas', model_dir, tas_model)
 
     with tf.Session(graph=graph) as sess:
-        detect_and_classify(detector, classifier, sess, img_arr)
+        if sign_type == 'LSS':
+            detect_and_classify(detector, lss_classifier, sess, img_arr, debug=True)
+        else:
+            detect_and_classify(detector, tas_classifier, sess, img_arr, debug=True)
 
     t1 = time()
     print("Running time: {:4.2f} seconds".format(t1-t0))

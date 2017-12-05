@@ -92,20 +92,21 @@ def read_features_lss(height, width, folder='Training'):
 
     return zerotoll_feats, closed_feats, normal_feats, congested_feats
 
+
 if __name__ == "__main__":
     from time import time
     import tensorflow as tf
     from misc.cnnpredictor import CnnPredictor
 
     training = True
-    data_type = 'LSS'
+    sign_type = 'LSS'
 
     if training:
         t0 = time()
-        if data_type == 'TAS':
-            train_tas(model='BASIC', model_scope='s2tas', max_steps=16000, result_file='step2_s2tas')
+        if sign_type == 'TAS':
+            train_tas(model='BASIC', model_scope='s2_tas', max_steps=16000, result_file='s2_tas_model')
         else:
-            train_lss(model='BASIC', model_scope='s2lss', max_steps=16000, result_file='step2_s2lss')
+            train_lss(model='BASIC', model_scope='s2_lss', max_steps=16000, result_file='s2_lss_model')
 
         t1 = time()
         print("Training time: {:6.2f} seconds".format(t1 - t0))
@@ -113,12 +114,12 @@ if __name__ == "__main__":
         height, width = FEATURE_HEIGHT, FEATURE_WIDTH
         res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
 
-        if data_type == 'TAS':
+        if sign_type == 'TAS':
             f0, f1 = read_features_tas(height, width, folder='Validation')
             cnt0, cnt1 = f0.shape[0], f1.shape[0]
 
             with tf.Session() as sess:
-                cnn_pred = CnnPredictor(sess, 's2tas', res_dir, 'step2_s2tas')
+                cnn_pred = CnnPredictor(sess, 's2_tas', res_dir, 's2_tas_model')
                 _, ind0 = cnn_pred.predict(f0)
                 _, ind1 = cnn_pred.predict(f1)
 
@@ -145,7 +146,7 @@ if __name__ == "__main__":
             cnt0, cnt1, cnt2, cnt3 = f0.shape[0], f1.shape[0], f2.shape[0], f3.shape[0]
 
             with tf.Session() as sess:
-                cnn_pred = CnnPredictor(sess, 's2lss', res_dir, 'step2_s2lss')
+                cnn_pred = CnnPredictor(sess, 's2_lss', res_dir, 's2_lss_model')
                 _, ind0 = cnn_pred.predict(f0)
                 _, ind1 = cnn_pred.predict(f1)
                 _, ind2 = cnn_pred.predict(f2)

@@ -2,6 +2,8 @@ import cv2
 import math
 import numpy as np
 import os
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 
 
 class ImgReader(object):
@@ -170,8 +172,76 @@ class ImgReader(object):
 
         return coordinates, features
 
+
+def plot_samples(X_images, img_height, img_width, figsize=(5, 5), transpose=True,
+                 shuffle=True):
+    """
+    Args:
+        X_images: A 2-D ndarray (matrix) each row of which holds the pixels as features
+            of one image. The row number will be the number of all input images.
+        img_height: The pixel numbers of the input image in height.
+        img_width: The pixel numbers of the input image in width.
+        figsize: Optional. The size of each small figure.
+        transpose: Optional. Whether to transpose the image array. When the image attributes
+            come from matlab, it needs to be transposed by default.
+        shuffle: Optional. Whether to shuffle the input array.
+    """
+    img_cnt, feature_cnt = X_images.shape
+    assert feature_cnt == img_height * img_width
+
+    if (shuffle):
+        images = np.random.permutation(X_images)
+    else:
+        images = X_images
+
+    if img_cnt >= 100:
+        n_row, n_col, samp_cnt = 10, 10, 100
+    elif img_cnt >= 64:
+        n_row, n_col, samp_cnt = 8, 8, 64
+    else:
+        n_row, n_col, samp_cnt = 0, 0, 0
+
+    if img_cnt >= samp_cnt > 0:
+        samps = images[0: samp_cnt]
+
+        plt.figure(figsize=figsize)
+        gs = gridspec.GridSpec(n_row, n_col, wspace=0.0, hspace=0.0)
+
+        for i in range(0, n_row):
+            for j in range(0, n_col):
+                ax = plt.subplot(gs[i, j])
+                idx = i * n_col + j
+                img = samps[idx].reshape(img_height, img_width)
+                if transpose:
+                    img = img.T
+                fig = ax.imshow(img, interpolation='nearest')
+                fig.axes.get_xaxis().set_visible(False)
+                fig.axes.get_yaxis().set_visible(False)
+
+        plt.suptitle('{} out of {} Samples'.format(samp_cnt, img_cnt), size=12, x=0.515, y=0.935)
+        plt.show()
+    else:
+        samps = images
+
+        n_col = math.ceil(math.sqrt(img_cnt))
+        n_row = math.ceil(img_cnt / n_col)
+
+        fig = plt.figure(figsize=figsize)
+        for i in range(0, img_cnt):
+            ax = fig.add_subplot(n_row, n_col, (i + 1))
+            if transpose:
+                img = ax.imshow(samps[i].reshape(img_height, img_width).T)
+            else:
+                img = ax.imshow(samps[i].reshape(img_height, img_width))
+
+            img.axes.get_xaxis().set_visible(False)
+            img.axes.get_yaxis().set_visible(False)
+
+        plt.suptitle('All {} Samples'.format(img_cnt), size=12, x=0.518, y=0.935)
+        plt.show()
+
+
 if __name__ == "__main__":
-    from misc.imgtools import plot_samples
     from settings import PROJECT_ROOT
 
     img_reader = ImgReader(28, 28)
