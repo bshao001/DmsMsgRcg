@@ -1,7 +1,5 @@
+import cv2
 import os
-
-from skimage import transform as tsf
-from skimage import io as skio
 
 from settings import PROJECT_ROOT
 
@@ -17,7 +15,7 @@ def get_immediate_subfolders(input_dir):
 
 
 def resize_to_desired(input_img):
-    return tsf.resize(input_img, (CLS_IMG_HEIGHT, CLS_IMG_WIDTH), mode='constant')
+    return cv2.resize(input_img, (CLS_IMG_WIDTH, CLS_IMG_HEIGHT))
 
 
 # This takes the positive training/validation data from step 1 and generates the training/validation
@@ -37,7 +35,7 @@ def resize_images_from_step1():
             for img_file in os.listdir(full_dir2):
                 full_path_name = os.path.join(full_dir2, img_file)
                 if os.path.isfile(full_path_name) and img_file.lower().endswith(tuple(EXT_FILTER)):
-                    ori_img = skio.imread(full_path_name)
+                    ori_img = cv2.imread(full_path_name)
                     new_img = resize_to_desired(ori_img)
                     new_path_name = os.path.join(full_dir2, 'Resized', img_file)
-                    skio.imsave(new_path_name, new_img)
+                    cv2.imwrite(new_path_name, new_img)

@@ -73,6 +73,6 @@ if __name__ == '__main__':
 
     log_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result', 'Logs')
 
-    weights_file = os.path.join(PROJECT_ROOT, 'Data', 'Result', 's1_weights.{epoch:02d}.h5')
+    weights_file = os.path.join(PROJECT_ROOT, 'Data', 'Result', 's1_model_weights.{epoch:02d}.h5')
 
     train('config.json', img_dir, label_file,  weights_file, log_dir)

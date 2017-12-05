@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+"""
+This script is based on the original Keras model, and serves as a test/validation tool during
+the model development. It is not used as a final product in part of the pipeline.
+"""
 import cv2
 import json
 
@@ -43,11 +47,12 @@ def draw_boxes(image, boxes):
 
     return image
 
+
 if __name__ == '__main__':
     import os
     from settings import PROJECT_ROOT
 
-    weights_file = os.path.join(PROJECT_ROOT, 'Data', 'Result', 's1_weights.h5')
+    weights_file = os.path.join(PROJECT_ROOT, 'Data', 'Result', 's1_model_weights.h5')
     img_dir = os.path.join(PROJECT_ROOT, 'Data', 'OtmImages')
     out_dir = os.path.join(PROJECT_ROOT, 'Data', 'Temp')
 
@@ -57,9 +62,9 @@ if __name__ == '__main__':
         full_path_name = os.path.join(img_dir, img_file)
         if os.path.isfile(full_path_name) and img_file.lower().endswith(tuple(['.jpg', '.png'])):
             file_count += 1
-            if file_count > 80000:
+            if file_count > 0:
                 file_list.append(full_path_name)
-                if file_count >= 80200:
+                if file_count >= 200:
                     break
 
     predict('config.json', weights_file, file_list, out_dir)

@@ -51,7 +51,6 @@ def find_vertical_lines(image_array, threshold):
     line_dict = {}
 
     height, width, _ = image_array.shape
-    print("{}, {}".format(height, width))
     for w in range(width):
         x, ymin, ymax = w, 0, 0
         for h in range(height):
@@ -106,6 +105,7 @@ def create_labels(image_dir, label_file):
             for (xmin, ymin, xmax, ymax) in box_list:
                 label_line += "; [{}, {}, {}, {}]".format(xmin, ymin, xmax, ymax)
 
+            print("Label: {}".format(label_line))
             f_label.write("{}\n".format(label_line))
 
 
@@ -120,9 +120,10 @@ class VerLine(namedtuple("VerLine", ["x", "ymin", "ymax"])):
 class LabelBox(namedtuple("LabelBox", ["xmin", "ymin", "xmax", "ymax"])):
     pass
 
+
 if __name__ == '__main__':
     from settings import PROJECT_ROOT
 
-    box_dir = os.path.join(PROJECT_ROOT, 'Data', 'Temp', 'BoxImages')
+    box_dir = os.path.join(PROJECT_ROOT, 'Data', 'Temp', 'PngImages')
     label_file = os.path.join(PROJECT_ROOT, 'Data', 'Step1', 'label_manual.txt')
     create_labels(box_dir, label_file)

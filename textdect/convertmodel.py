@@ -12,6 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+"""
+If you convert a model that was not trained on the same computer, make sure the python versions
+on the two machines are the same (all in 3.5 or all in 3.6). Otherwise, you may encounter weird
+errors.
+"""
 import cv2
 import json
 import numpy as np
@@ -59,6 +64,10 @@ class ConvertedModel(object):
 
 
 def s1_predict(config_file, model_dir, model_file, predict_file_list, out_dir):
+    """
+    This function serves as a test/validation tool during the model development. It is not used as
+    a final product in part of the pipeline.
+    """
     with open(config_file) as config_buffer:
         config = json.loads(config_buffer.read())
 
@@ -106,7 +115,7 @@ if __name__ == '__main__':
     action = 'predict'  # Modify this line to run convert or predict
     if action == 'convert':
         model_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
-        keras_model = 's1_weights.h5'  # model architecture and weights
+        keras_model = 's1_model_weights.h5'  # model architecture and weights
         tf_model = 's1_graph_weights.pb'
         convert(model_dir, keras_model, tf_model)
     else:  # predict
@@ -121,9 +130,9 @@ if __name__ == '__main__':
             full_path_name = os.path.join(img_dir, img_file)
             if os.path.isfile(full_path_name) and img_file.lower().endswith(tuple(['.jpg', '.png'])):
                 file_count += 1
-                if file_count > 80000:
+                if file_count > 200:
                     file_list.append(full_path_name)
-                    if file_count >= 80100:
+                    if file_count >= 1000:
                         break
 
         s1_predict('config.json', model_dir, model_file, file_list, out_dir)
