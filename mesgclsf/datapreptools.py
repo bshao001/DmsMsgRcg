@@ -1,41 +1,46 @@
 import cv2
+import math
 import os
-
-from settings import PROJECT_ROOT
 
 CLS_IMG_HEIGHT = 28
 CLS_IMG_WIDTH = 96
 
-EXT_FILTER = ['.jpg', '.png']
-
-
-def get_immediate_subfolders(input_dir):
-    return [folder_name for folder_name in os.listdir(input_dir)
-            if os.path.isdir(os.path.join(input_dir, folder_name))]
-
 
 def resize_to_desired(input_img):
-    return cv2.resize(input_img, (CLS_IMG_WIDTH, CLS_IMG_HEIGHT))
+    h, w, _ = input_img.shape
+    if h < 20:  # pad the image to 20 or 21 pixels height if it is too short
+        border = math.ceil((20 - h) / 2)
+        new_img = cv2.copyMakeBorder(input_img, top=border, bottom=border, left=0, right=0,
+                                     borderType=cv2.BORDER_DEFAULT)
+    else:
+        new_img = input_img
+
+    return cv2.resize(new_img, (CLS_IMG_WIDTH, CLS_IMG_HEIGHT))
 
 
-# This takes the positive training/validation data from step 1 and generates the training/validation
-# data for step 2.
-def resize_images_from_step1():
-    # Copy all images into this folder: $PROJECT_ROOT/Data/Step2/Temp/Images/InThisFolder/,
-    # which will be placed along with the 'Resized' folder. Then run this script. You will
-    # get all the resized images in the resized folder.
-    in_dir = os.path.join(PROJECT_ROOT, 'Data', 'Step2', 'Temp')
+if __name__ == "__main__":
+    # This script prepares training samples for step 2 based on the manual labels in step 1.
+    from settings import PROJECT_ROOT
 
-    for sub_dir in get_immediate_subfolders(in_dir):
-        full_dir = os.path.join(in_dir, sub_dir)
-        for sub_dir2 in get_immediate_subfolders(full_dir):
-            full_dir2 = os.path.join(full_dir, sub_dir2)
-            resized_dir = os.path.join(full_dir2, 'Resized')
+    input_dir = os.path.join(PROJECT_ROOT, 'Data', 'Step1', 'Training', 'AntImages')
+    output_dir = os.path.join(PROJECT_ROOT, 'Data', 'Temp', 'ResizedImages')
+    label_file = os.path.join(PROJECT_ROOT, 'Data', 'Step1', 'Training', 'labels.txt')
 
-            for img_file in os.listdir(full_dir2):
-                full_path_name = os.path.join(full_dir2, img_file)
-                if os.path.isfile(full_path_name) and img_file.lower().endswith(tuple(EXT_FILTER)):
-                    ori_img = cv2.imread(full_path_name)
-                    new_img = resize_to_desired(ori_img)
-                    new_path_name = os.path.join(full_dir2, 'Resized', img_file)
-                    cv2.imwrite(new_path_name, new_img)
+    with open(label_file, 'r') as label_f:
+        for line in label_f:
+            ln = line.strip()
+            if not ln:
+                continue
+            s = ln.split(';')
+            if len(s) == 1:
+                continue
+            img_file = s[0].strip()
+            full_img = cv2.imread(os.path.join(input_dir, img_file))
+
+            for i in range(1, len(s)):
+                xmin, ymin, xmax, ymax = s[i].strip()[1:-1].split(',')
+                area_img = full_img[int(ymin):int(ymax), int(xmin):int(xmax), :]
+                resized_img = resize_to_desired(area_img)
+                out_file = img_file[:-4] + '_' + str(i) + '.png'  # Always save as png files
+                out_full_name = os.path.join(output_dir, out_file)
+                cv2.imwrite(out_full_name, resized_img)

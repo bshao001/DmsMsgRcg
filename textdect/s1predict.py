@@ -62,9 +62,9 @@ if __name__ == '__main__':
         full_path_name = os.path.join(img_dir, img_file)
         if os.path.isfile(full_path_name) and img_file.lower().endswith(tuple(['.jpg', '.png'])):
             file_count += 1
-            if file_count > 0:
+            if file_count > 125000:
                 file_list.append(full_path_name)
-                if file_count >= 200:
+                if file_count >= 125200:
                     break
 
     predict('config.json', weights_file, file_list, out_dir)
