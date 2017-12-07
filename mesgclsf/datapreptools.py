@@ -7,7 +7,7 @@ CLS_IMG_WIDTH = 96
 
 
 def resize_to_desired(input_img):
-    h, w, _ = input_img.shape
+    h = input_img.shape[0]
     if h < 20:  # pad the image to 20 or 21 pixels height if it is too short
         border = math.ceil((20 - h) / 2)
         new_img = cv2.copyMakeBorder(input_img, top=border, bottom=border, left=0, right=0,

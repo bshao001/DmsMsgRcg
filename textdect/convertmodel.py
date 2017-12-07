@@ -112,7 +112,7 @@ def convert(model_dir, keras_model_file, tf_model_file, name_output='s1_output',
 if __name__ == '__main__':
     from settings import PROJECT_ROOT
 
-    action = 'predict'  # Modify this line to run convert or predict
+    action = 'convert'  # Modify this line to run convert or predict
     if action == 'convert':
         model_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
         keras_model = 's1_model_weights.h5'  # model architecture and weights

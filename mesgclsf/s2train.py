@@ -99,7 +99,7 @@ if __name__ == "__main__":
     from misc.cnnpredictor import CnnPredictor
 
     training = True
-    sign_type = 'LSS'
+    sign_type = 'TAS'
 
     if training:
         t0 = time()

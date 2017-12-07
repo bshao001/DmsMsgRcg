@@ -78,8 +78,8 @@ if __name__ == "__main__":
     lss_model = 's2_lss_model.pb'
     tas_model = 's2_tas_model.pb'
 
-    sign_type = 'LSS'  # or TAS
-    img_file = os.path.join(PROJECT_ROOT, 'Data', 'Step1', 'Test', '10.jpg')
+    sign_type = 'TAS'  # LSS or TAS
+    img_file = os.path.join(PROJECT_ROOT, 'Data', 'Step1', 'Test', 'sign1.jpg')
     img_arr = cv2.imread(img_file)
 
     s1_config_file = os.path.join(PROJECT_ROOT, 'textdect', 'config.json')

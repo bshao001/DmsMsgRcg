@@ -87,5 +87,10 @@ if __name__ == "__main__":
     from settings import PROJECT_ROOT
 
     res_dir = os.path.join(PROJECT_ROOT, "Data", "Result")
-    model_scope = "s2_lss"
-    freeze(model_scope, res_dir, "s2_lss_model")
+    sign_type = "TAS"
+    if sign_type == "LSS":
+        model_scope = "s2_lss"
+        freeze(model_scope, res_dir, "s2_lss_model")
+    else:
+        model_scope = "s2_tas"
+        freeze(model_scope, res_dir, "s2_tas_model")
