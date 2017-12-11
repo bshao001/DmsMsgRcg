@@ -2,18 +2,18 @@
   "model_architecture": "Full",
 
   "image_height": 480,
-  "image_width": 480,
+  "image_width": 576,
 
-  "image_left_skip": 85,
-  "image_right_skip": 75,
+  "image_left_skip": 32,
+  "image_right_skip": 32,
 
   "grid_y_count": 15,
-  "grid_x_count": 15,
+  "grid_x_count": 18,
 
   "grid_y_size": 32,
   "grid_x_size": 32,
 
-  "batch_size": 16,
+  "batch_size": 12,
   "num_epoch": 50,
 
   "debug": false

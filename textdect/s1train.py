@@ -28,19 +28,22 @@ def train(config_file, train_image_dir, train_label_file,  weights_path_file, tr
         if os.path.isfile(full_path_name) and img_file.lower().endswith(tuple(['.jpg', '.png'])):
             file_list.append(img_file)
 
-    train_data = read_image_data(file_list, train_label_file)
+    train_data = read_image_data(config, file_list, train_label_file)
     print("# Training data size: {}".format(len(train_data)))
 
     yolo_net = YoloNet(config)
     yolo_net.train(train_image_dir, train_data,  weights_path_file, train_log_dir)
 
 
-def read_image_data(image_file_list, label_path_file):
+def read_image_data(config, image_file_list, label_path_file):
     """
     A sample line in the label file:
         aa.jpg; [100, 120, 200, 156]; [100, 200, 208, 248]
     """
     image_data = []
+
+    VALID_MIN_X = config['image_left_skip']
+    VALID_MAX_X = 640 - config['image_right_skip']
 
     with open(label_path_file, 'r') as label_f:
         for line in label_f:
@@ -54,13 +57,19 @@ def read_image_data(image_file_list, label_path_file):
             img_item['filename'] = s[0].strip()
 
             tmp = []
+            OUT_OF_RANGE = False
             for i in range(1, len(s)):
                 xmin, ymin, xmax, ymax = s[i].strip()[1:-1].split(',')
                 tmp.append((xmin, ymin, xmax, ymax))
+                if int(xmin) < VALID_MIN_X or int(xmax) > VALID_MAX_X:
+                    OUT_OF_RANGE = True
 
             img_item['labels'] = tmp
-
-            image_data.append(img_item)
+            if not OUT_OF_RANGE:
+                image_data.append(img_item)
+            else:
+                print("# At least one box in image {} is out of range. Sample skiped."
+                      .format(img_item['filename']))
 
     return image_data
 
