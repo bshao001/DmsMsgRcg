@@ -9,7 +9,7 @@ FEATURE_HEIGHT = 28
 FEATURE_WIDTH = 32
 
 
-def train_tas(model, model_scope, max_steps, result_file):
+def train_tas(model, model_scope, num_epoches, result_file):
     height, width = FEATURE_HEIGHT, FEATURE_WIDTH
 
     feats0, feats1 = read_features_tas(height, width)
@@ -26,12 +26,12 @@ def train_tas(model, model_scope, max_steps, result_file):
 
     res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
     img_cnn = ImgConvNets(model, model_scope, height, width, class_count=2, keep_prob=0.5,
-                          batch_size=32, learning_rate=1e-4, lr_adaptive=True, max_steps=max_steps)
+                          batch_size=32, learning_rate=1e-4, lr_adaptive=True, num_epoches=num_epoches)
 
     img_cnn.train(all_feats, all_y, res_dir, result_file=result_file)
 
 
-def train_lss(model, model_scope, max_steps, result_file):
+def train_lss(model, model_scope, num_epoches, result_file):
     height, width = FEATURE_HEIGHT, FEATURE_WIDTH
 
     feats0, feats1, feats2, feats3 = read_features_lss(height, width)
@@ -52,7 +52,7 @@ def train_lss(model, model_scope, max_steps, result_file):
 
     res_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
     img_cnn = ImgConvNets(model, model_scope, height, width, class_count=4, keep_prob=0.5,
-                          batch_size=32, learning_rate=1e-4, lr_adaptive=True, max_steps=max_steps)
+                          batch_size=32, learning_rate=1e-4, lr_adaptive=True, num_epoches=num_epoches)
 
     img_cnn.train(all_feats, all_y, res_dir, result_file=result_file)
 
@@ -99,14 +99,14 @@ if __name__ == "__main__":
     from misc.cnnpredictor import CnnPredictor
 
     training = True
-    sign_type = 'TAS'
+    sign_type = 'LSS'
 
     if training:
         t0 = time()
         if sign_type == 'TAS':
-            train_tas(model='BASIC', model_scope='s2_tas', max_steps=16000, result_file='s2_tas_model')
+            train_tas(model='BASIC', model_scope='s2_tas', num_epoches=50, result_file='s2_tas_model')
         else:
-            train_lss(model='BASIC', model_scope='s2_lss', max_steps=16000, result_file='s2_lss_model')
+            train_lss(model='BASIC', model_scope='s2_lss', num_epoches=50, result_file='s2_lss_model')
 
         t1 = time()
         print("Training time: {:6.2f} seconds".format(t1 - t0))

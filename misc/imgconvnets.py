@@ -13,7 +13,7 @@ class ImgConvNets(object):
     are multiplications of 4.
     """
     def __init__(self, model, model_scope, img_height, img_width, class_count, keep_prob=0.5,
-                 learning_rate=1e-4, lr_adaptive=True, batch_size=32, max_steps=20000):
+                 learning_rate=1e-4, lr_adaptive=True, batch_size=32, num_epoches=100):
         """
         Args:
             model: Specify which model to use.
@@ -28,7 +28,7 @@ class ImgConvNets(object):
                 accuracy. If True, the given learning_rate will be ignored.
             batch_size: optional. The number of samples to be used in one step of the
                 optimization process.
-            max_steps: optional. The max number of iterative steps in the training process.
+            num_epoches: optional. The number of epoches for the training process.
         """
         assert model == 'BASIC' or model == 'DCNN' or model == 'STCNN'
 
@@ -41,7 +41,7 @@ class ImgConvNets(object):
         self.learning_rate = learning_rate
         self.lr_adaptive = lr_adaptive
         self.batch_size = batch_size
-        self.max_steps = max_steps
+        self.num_epoches = num_epoches
 
     def train(self, img_features, true_labels, train_dir, result_file):
         """
@@ -103,43 +103,44 @@ class ImgConvNets(object):
 
             save_file = os.path.join(train_dir, result_file)
 
-            disp_step = self._get_epoch_step_count(train_set.shape[0])
-            for step in range(self.max_steps):
-                # Read a batch of images and labels
-                batch_data = self._get_next_batch(train_set, step*self.batch_size)
-                images_feed, labels_feed = \
-                    batch_data[:, :cols], batch_data[:, cols:].reshape(-1)
-
+            epoch_steps = math.ceil(train_set.shape[0] / self.batch_size)
+            for epoch in range(1, self.num_epoches+1):
                 lr_feed = self._get_learning_rate(last_accu)
-                # Run one step of the model.  The return values are the activations
-                # from the `train_op` (which is discarded) and the `loss` Op.
-                _, loss_val, accu_val = sess.run([train_op, loss, accuracy],
-                                                 feed_dict={images_placeholder: images_feed,
-                                                            labels_placeholder: labels_feed,
-                                                            learning_rate_placeholder: lr_feed,
-                                                            keep_prob_placeholder: self.keep_prob})
+                for step in range(epoch_steps):
+                    # Read a batch of images and labels
+                    batch_data = self._get_next_batch(train_set, step*self.batch_size)
+                    images_feed, labels_feed = \
+                        batch_data[:, :cols], batch_data[:, cols:].reshape(-1)
 
-                # Check to make sure the loss is decreasing
-                loss_list.append(loss_val)
-                accu_list.append(accu_val)
-                if (step % disp_step == 0) or (step == self.max_steps-1):
-                    mean_accu = sum(accu_list)*100/len(accu_list)
-                    if mean_accu >= 99.68 and mean_accu > last_accu:
-                        saver.save(sess, save_file, global_step=step)
-                    elif step == self.max_steps - 1:
-                        saver.save(sess, save_file)
+                    # Run one step of the model.  The return values are the activations
+                    # from the `train_op` (which is discarded) and the `loss` Op.
+                    _, loss_val, accu_val = sess.run([train_op, loss, accuracy],
+                                                     feed_dict={images_placeholder: images_feed,
+                                                                labels_placeholder: labels_feed,
+                                                                learning_rate_placeholder: lr_feed,
+                                                                keep_prob_placeholder: self.keep_prob})
 
-                    print("Step {:6d}: learning_rate used = {:.6f}, average loss = {:8.4f}, "
-                          "and training accuracy min = {:6.2f}%, mean = {:6.2f}%, "
-                          "max = {:6.2f}%".format(step, lr_feed,
-                                                  sum(loss_list)/len(loss_list),
-                                                  min(accu_list)*100, mean_accu,
-                                                  max(accu_list)*100))
-                    if mean_accu >= 99.99: break
+                    # Check to make sure the loss is decreasing
+                    loss_list.append(loss_val)
+                    accu_list.append(accu_val)
 
-                    loss_list = []
-                    accu_list = []
-                    last_accu = mean_accu
+                mean_accu = sum(accu_list)*100/len(accu_list)
+                if mean_accu >= 99.68 and mean_accu > last_accu:
+                    saver.save(sess, save_file, global_step=epoch)
+                elif epoch == self.num_epoches - 1:
+                    saver.save(sess, save_file)
+
+                print("Epoch {:3d} completed: learning_rate used = {:.6f}, average loss = {:8.4f}, "
+                      "and training accuracy min = {:6.2f}%, mean = {:6.2f}%, "
+                      "max = {:6.2f}%".format(epoch, lr_feed,
+                                              sum(loss_list)/len(loss_list),
+                                              min(accu_list)*100, mean_accu,
+                                              max(accu_list)*100))
+                if mean_accu >= 99.99: break
+
+                loss_list = []
+                accu_list = []
+                last_accu = mean_accu
 
     def _build_inference_graph_stcnn(self, images, keep_prob):
         """
@@ -392,14 +393,6 @@ class ImgConvNets(object):
         accuracy = tf.reduce_mean(tf.cast(correct_predict, tf.float32))
 
         return train_op, loss, accuracy
-
-    def _get_epoch_step_count(self, train_set_size):
-        if self.max_steps > 10000:
-            epoch_step = math.ceil(train_set_size / (self.batch_size * 1000.0)) * 1000
-        else:
-            epoch_step = math.ceil(train_set_size / (self.batch_size * 100.0)) * 100
-
-        return epoch_step
 
     def _get_next_batch(self, data_set, start_index):
         cnt = data_set.shape[0]

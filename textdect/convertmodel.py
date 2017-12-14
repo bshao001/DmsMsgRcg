@@ -112,7 +112,7 @@ def convert(model_dir, keras_model_file, tf_model_file, name_output='s1_output',
 if __name__ == '__main__':
     from settings import PROJECT_ROOT
 
-    action = 'convert'  # Modify this line to run convert or predict
+    action = 'predict'  # Modify this line to run convert or predict
     if action == 'convert':
         model_dir = os.path.join(PROJECT_ROOT, 'Data', 'Result')
         keras_model = 's1_model_weights.h5'  # model architecture and weights
@@ -131,9 +131,9 @@ if __name__ == '__main__':
             full_path_name = os.path.join(img_dir, img_file)
             if os.path.isfile(full_path_name) and img_file.lower().endswith(tuple(['.jpg', '.png'])):
                 file_count += 1
-                if file_count > 200:
+                if file_count > 2600:
                     file_list.append(full_path_name)
-                    if file_count >= 1000:
+                    if file_count >= 3000:
                         break
 
         s1_predict('config.json', model_dir, model_file, file_list, out_dir)
